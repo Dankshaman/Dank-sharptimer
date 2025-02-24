@@ -107,7 +107,7 @@ namespace SharpTimer
         public string? currentMapType = null;
         public int? currentMapTier = null;
 
-        public bool isLinux = true;
+        public bool isLinux = false;
         public bool enableDebug = true;
         public bool killServerCommands = true;
         public bool useMySQL = false;
