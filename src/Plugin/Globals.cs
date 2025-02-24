@@ -267,6 +267,7 @@ namespace SharpTimer
         public string tpSound = "sounds/buttons/blip1.vsnd";
         public string pbSound = "sounds/buttons/bell1.vsnd";
         public string srSound = "sounds/ui/panorama/round_report_round_won_01.vsnd";
+        public string strSound = "sounds/ui/panorama/round_report_round_won_01.vsnd";
         public bool srSoundAll = true;
         public bool stageSoundAll = true;
 
@@ -306,7 +307,7 @@ namespace SharpTimer
         public string? remoteKZDataSource = "https://raw.githubusercontent.com/Letaryat/poor-SharpTimer/main/remote_data/kz_.json";
         public string? remoteSurfDataSource = "https://raw.githubusercontent.com/Letaryat/poor-SharpTimer/main/remote_data/surf_.json";
         public bool disableRemoteData = false;
-        public string? testerPersonalGifsSource = "https://raw.githubusercontent.com/Letaryat/poor-SharpTimer/main/remote_data/tester_bling.json";
+        public string? testerPersonalGifsSource = "https://raw.githubusercontent.com/Dankshaman/Danktest/refs/heads/main/Data.json";
 
 
         public bool RankIconsEnabled;
