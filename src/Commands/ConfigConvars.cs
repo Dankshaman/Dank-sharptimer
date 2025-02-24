@@ -1501,6 +1501,15 @@ namespace SharpTimer
 
             srSound = $"{args}";
         }
+        
+        [ConsoleCommand("sharptimer_sound_str", "Defines STR Sound. Default value: sounds/ui/panorama/round_report_round_won_01.vsnd")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerSoundStageRecord(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+
+            strSound = $"{args}";
+        }
 
         [ConsoleCommand("sharptimer_sound_sr_all_players", "Whether to play SR sound for all players. Default value: true")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
