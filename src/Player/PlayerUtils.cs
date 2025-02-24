@@ -591,8 +591,8 @@ namespace SharpTimer
                         timeDifference = $"[{FormatTimeDifference(newticks, prevSR)}{ChatColors.White}] ";
                     }
                     PrintToChatAll(Localizer["new_stage_server_record", playerName]);
-                    if (stageSoundAll) SendCommandToEveryone($"play {srSound}");
-                    else PlaySound(player, srSound);
+                    if (stageSoundAll) SendCommandToEveryone($"play {strSound}");
+                    else PlaySound(player, strSound);
                     PrintToChatAll(Localizer["timer_time", newTime, timeDifference]);
                     //TODO: Discord webhook stage sr
                     //if (discordWebhookPrintSR && discordWebhookEnabled && enableDb) _ = Task.Run(async () => await DiscordRecordMessage(player, playerName, newTime, steamID, ranking, timesFinished, true, timeDifferenceNoCol, bonusX));
