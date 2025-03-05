@@ -19,6 +19,7 @@ using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using System.Runtime.InteropServices;
+using CounterStrikeSharp.API.Modules.Timers;
 
 namespace SharpTimer
 {
@@ -70,7 +71,7 @@ namespace SharpTimer
                 AddTimer(randomf, () => CheckCvarsAndMaxVelo(), CounterStrikeSharp.API.Modules.Timers.TimerFlags.REPEAT);
 
             currentMapName = Server.MapName;
-            
+
             RegisterListener<Listeners.CheckTransmit>((CCheckTransmitInfoList infoList) =>
             {
                 IEnumerable<CCSPlayerController> players = Utilities.FindAllEntitiesByDesignerName<CCSPlayerController>("cs_player_controller");
@@ -83,10 +84,10 @@ namespace SharpTimer
                     if (player == null || player.IsBot || !player.IsValid || player.IsHLTV)
                         continue;
 
-                    if (!connectedPlayers.TryGetValue(player.Slot, out var connected))
+                    if (!connectedPlayers.TryGetValue(player.Slot, out var connected) || connected == null)
                         continue;
-                    
-                    if (!playerTimers[player.Slot].HidePlayers)
+
+                    if (!playerTimers.TryGetValue(player.Slot, out var timer) || timer == null || !timer.HidePlayers)
                         continue;
 
                     foreach (var target in Utilities.GetPlayers())
@@ -94,11 +95,12 @@ namespace SharpTimer
                         if (target == null || target.IsHLTV || target.IsBot || !target.IsValid)
                             continue;
 
-                        var pawn = target.Pawn.Value!;
+                        var pawn = target.Pawn?.Value;
                         if (pawn is null)
                             continue;
 
-                        if (player.Pawn.Value?.As<CCSPlayerPawnBase>().PlayerState == CSPlayerState.STATE_OBSERVER_MODE)
+                        var playerPawn = player.Pawn.Value?.As<CCSPlayerPawnBase>().PlayerState;
+                        if (playerPawn == null || playerPawn == CSPlayerState.STATE_OBSERVER_MODE)
                             continue;
 
                         if (pawn == player.Pawn.Value)
@@ -109,6 +111,7 @@ namespace SharpTimer
                             info.TransmitEntities.Remove(pawn);
                             continue;
                         }
+
                         info.TransmitEntities.Remove(pawn);
                     }
                 }
@@ -361,6 +364,8 @@ namespace SharpTimer
             {
                 DamageHook();
             });
+
+            AddTimer(1.0f, AssignPlayerScoreboards, TimerFlags.REPEAT);
 
             AddCommandListener("say", OnPlayerChat);
             AddCommandListener("say_team", OnPlayerChat);
