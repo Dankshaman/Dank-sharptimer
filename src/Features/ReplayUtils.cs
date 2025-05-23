@@ -14,8 +14,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 using CounterStrikeSharp.API;
-using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Modules.Utils;
+using CounterStrikeSharp.API.Core; // For CBeam, CBaseEntity, etc.
+using CounterStrikeSharp.API.Modules.Utils; // For Vector
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using System.Text.Json;
 using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
@@ -100,6 +100,46 @@ namespace SharpTimer
                     if (value.HideKeys != true && value.IsReplaying == true && keysOverlayEnabled == true)
                     {
                         player.PrintToCenter(replayButtons);
+                    }
+
+                    if (plackbackTick > 0) // Ensure there's a previous frame
+                    {
+                        var currentFrameData = playerReplays[player.Slot].replayFrames[plackbackTick];
+                        var previousFrameData = playerReplays[player.Slot].replayFrames[plackbackTick - 1];
+
+                        if (currentFrameData != null && currentFrameData.Position != null && previousFrameData != null && previousFrameData.Position != null)
+                        {
+                            Vector currentPos = ReplayVector.ToVector(currentFrameData.Position);
+                            Vector previousPos = ReplayVector.ToVector(previousFrameData.Position);
+
+                            if (currentPos != null && previousPos != null && currentPos != previousPos)
+                            {
+                                try
+                                {
+                                    CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
+                                    if (beam != null && beam.IsValid) // Also check IsValid after creation
+                                    {
+                                        beam.BeamType = 0; // Straight line
+                                        beam.vecAbsStart = previousPos;
+                                        beam.vecAbsEnd = currentPos;
+                                        beam.SetModel("sprites/laser.vmt");
+                                        beam.Brightness = 200;
+                                        beam.Width = 3.0f;
+                                        beam.R = 50;  // Light Blue/Cyan
+                                        beam.G = 150;
+                                        beam.B = 255;
+                                        beam.Life = 0.08f; // Short lifespan for quick fade
+                                        beam.HDRColorScale = 1.0f;
+                                        
+                                        beam.DispatchSpawn();
+                                    }
+                                }
+                                catch(Exception e)
+                                {
+                                    SharpTimerError($"Error creating beam: {e.Message}");
+                                }
+                            }
+                        }
                     }
                 }
             }
