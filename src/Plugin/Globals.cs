@@ -268,8 +268,10 @@ namespace SharpTimer
         public string cpSound = "sounds/ui/buttonclick.vsnd";
         public string cpSoundError = "sounds/ui/weapon_cant_buy.vsnd";
         public string tpSound = "sounds/buttons/blip1.vsnd";
-        public string pbSound = "sounds/buttons/bell1.vsnd";
-        public string srSound = "sounds/ui/panorama/round_report_round_won_01.vsnd";
+        public List<string> pbSound = new List<string>();
+        public List<string> srSound = new List<string>();
+        public string defaultPbSound = "sounds/buttons/bell1.vsnd";
+        public string defaultSrSound = "sounds/ui/panorama/round_report_round_won_01.vsnd";
         public string strSound = "sounds/ui/panorama/round_report_round_won_01.vsnd";
         public bool srSoundAll = true;
         public bool stageSoundAll = true;

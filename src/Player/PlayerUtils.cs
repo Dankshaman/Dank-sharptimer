@@ -550,8 +550,17 @@ namespace SharpTimer
                     else
                     {
                         PrintToChatAll(Localizer["new_server_record", playerName]);
-                        if (srSoundAll) SendCommandToEveryone($"play {srSound}");
-                        else PlaySound(player, srSound);
+                        string soundToPlayForSr;
+                        if (srSound != null && srSound.Count > 0)
+                        {
+                            soundToPlayForSr = srSound[new Random().Next(srSound.Count)];
+                        }
+                        else
+                        {
+                            soundToPlayForSr = defaultSrSound;
+                        }
+                        if (srSoundAll) SendCommandToEveryone($"play {soundToPlayForSr}");
+                        else PlaySound(player, soundToPlayForSr);
                     }
                     if (discordWebhookPrintSR && discordWebhookEnabled && enableDb) _ = Task.Run(async () => await DiscordRecordMessage(player, playerName, newTime, steamID, ranking, timesFinished, true, timeDifferenceNoCol, bonusX));
                 }
@@ -560,7 +569,16 @@ namespace SharpTimer
                     if (bonusX != 0) PrintToChatAll(Localizer["new_pb_record_bonus", playerName, bonusX]);
                     else PrintToChatAll(Localizer["new_pb_record", playerName]);
                     if (discordWebhookPrintPB && discordWebhookEnabled && enableDb) _ = Task.Run(async () => await DiscordRecordMessage(player, playerName, newTime, steamID, ranking, timesFinished, false, timeDifferenceNoCol, bonusX));
-                    PlaySound(player, pbSound);
+                    string soundToPlayForPb;
+                    if (pbSound != null && pbSound.Count > 0)
+                    {
+                        soundToPlayForPb = pbSound[new Random().Next(pbSound.Count)];
+                    }
+                    else
+                    {
+                        soundToPlayForPb = defaultPbSound;
+                    }
+                    PlaySound(player, soundToPlayForPb);
                 }
                 else
                 {

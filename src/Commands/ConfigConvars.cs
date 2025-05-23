@@ -1487,8 +1487,20 @@ namespace SharpTimer
         public void SharpTimerSoundPersonalBestRecord(CCSPlayerController? player, CommandInfo command)
         {
             string args = command.ArgString.Trim();
+            pbSound.Clear();
 
-            pbSound = $"{args}";
+            if (!string.IsNullOrEmpty(args))
+            {
+                var soundPaths = args.Split(',');
+                foreach (var path in soundPaths)
+                {
+                    var trimmedPath = path.Trim();
+                    if (!string.IsNullOrEmpty(trimmedPath))
+                    {
+                        pbSound.Add(trimmedPath);
+                    }
+                }
+            }
         }
 
         [ConsoleCommand("sharptimer_sound_sr", "Defines SR Sound. Default value: sounds/ui/panorama/round_report_round_won_01.vsnd")]
@@ -1496,8 +1508,20 @@ namespace SharpTimer
         public void SharpTimerSoundServerRecord(CCSPlayerController? player, CommandInfo command)
         {
             string args = command.ArgString.Trim();
+            srSound.Clear();
 
-            srSound = $"{args}";
+            if (!string.IsNullOrEmpty(args))
+            {
+                var soundPaths = args.Split(',');
+                foreach (var path in soundPaths)
+                {
+                    var trimmedPath = path.Trim();
+                    if (!string.IsNullOrEmpty(trimmedPath))
+                    {
+                        srSound.Add(trimmedPath);
+                    }
+                }
+            }
         }
         
         [ConsoleCommand("sharptimer_sound_str", "Defines STR Sound. Default value: sounds/ui/panorama/round_report_round_won_01.vsnd")]
