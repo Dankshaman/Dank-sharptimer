@@ -117,26 +117,37 @@ namespace SharpTimer
                                 try
                                 {
                                     CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
-                                    if (beam != null && beam.IsValid) // Also check IsValid after creation
+                                    if (beam != null && beam.IsValid)
                                     {
-                                        beam.BeamType = 0; // Straight line
-                                        beam.vecAbsStart = previousPos;
-                                        beam.vecAbsEnd = currentPos;
-                                        beam.SetModel("sprites/laser.vmt");
-                                        beam.Brightness = 200;
-                                        beam.Width = 3.0f;
-                                        beam.R = 50;  // Light Blue/Cyan
-                                        beam.G = 150;
-                                        beam.B = 255;
-                                        beam.Life = 0.08f; // Short lifespan for quick fade
-                                        beam.HDRColorScale = 1.0f;
+                                        // It's crucial to set owner if beams are player-specific or need to interact with player visibility systems.
+                                        // beam.OwnerEntity = player.Pawn.Value.As<CBaseEntity>(); // Example if needed, might not be necessary for world beams.
+
+                                        beam.SetDispatchKeyValue("BeamType", 0); // Straight line
+                                        beam.SetDispatchKeyValue("vecAbsStart", previousPos); // Attempt direct world space coordinates
+                                        beam.SetDispatchKeyValue("vecAbsEnd", currentPos);     // Attempt direct world space coordinates
+                                        beam.SetDispatchKeyValue("model", "sprites/laser.vmt");
+                                        beam.SetDispatchKeyValue("brightness", 200);
+                                        beam.SetDispatchKeyValue("width", 3.0f);
+                                        // For color, use the Color class from CounterStrikeSharp.API.Modules.Utils
+                                        // Ensure 'using CounterStrikeSharp.API.Modules.Utils;' is at the top of the file.
+                                        beam.SetDispatchKeyValue("color", new Color(50, 150, 255, 255)); // R, G, B, Alpha (assuming Color takes alpha)
+                                        beam.SetDispatchKeyValue("lifetime", 0.08f); 
+                                        beam.SetDispatchKeyValue("HDRColorScale", 1.0f);
                                         
+                                        // Some entities require a specific function to set their owner, or it's done via DispatchKeyValue
+                                        // For beams, it's often not strictly necessary unless for specific visibility/collision rules.
+                                        // If 'OwnerEntity' is a direct property that works, it could be set:
+                                        // if (player != null && player.Pawn != null && player.Pawn.Value != null)
+                                        // {
+                                        //     beam.Owner = player.Pawn.Value; // Or similar property if it exists and is settable
+                                        // }
+
                                         beam.DispatchSpawn();
                                     }
                                 }
                                 catch(Exception e)
                                 {
-                                    SharpTimerError($"Error creating beam: {e.Message}");
+                                    SharpTimerError($"Error creating beam with SetDispatchKeyValue: {e.Message}");
                                 }
                             }
                         }
