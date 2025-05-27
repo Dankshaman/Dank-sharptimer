@@ -292,6 +292,7 @@ namespace SharpTimer
                     }
                     else
                     {
+                        ClearReplayVisuals(player.Slot); // Updated call: Clean up visuals associated with the disconnecting player
                         OnPlayerDisconnect(player);
                     }
                 }

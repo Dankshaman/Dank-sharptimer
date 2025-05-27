@@ -19,6 +19,7 @@ using CounterStrikeSharp.API.Modules.Utils; // For Vector
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using System.Text.Json;
 using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
+// Removed: using System.Drawing; // For Color (no longer needed for CParticleSystem)
 
 namespace SharpTimer
 {
@@ -112,42 +113,52 @@ namespace SharpTimer
                             Vector currentPos = ReplayVector.ToVector(currentFrameData.Position);
                             Vector previousPos = ReplayVector.ToVector(previousFrameData.Position);
 
-                            if (currentPos != null && previousPos != null && currentPos != previousPos)
+                            if (currentPos != null && previousPos != null && currentPos != previousPos) // Ensure positions are valid and distinct
                             {
+                                // (previousPos and currentPos are assumed to be available as Vector objects)
+                                // We'll spawn the particle effect at the currentPos of the replay frame.
+
                                 try
                                 {
-                                    CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
-                                    if (beam != null && beam.IsValid)
+                                    var particleSystem = Utilities.CreateEntityByName<CParticleSystem>("info_particle_system");
+                                    if (particleSystem == null || !particleSystem.IsValid)
                                     {
-                                        // It's crucial to set owner if beams are player-specific or need to interact with player visibility systems.
-                                        // beam.OwnerEntity = player.Pawn.Value.As<CBaseEntity>(); // Example if needed, might not be necessary for world beams.
-
-                                        beam.SetDispatchKeyValue("BeamType", 0); // Straight line
-                                        beam.SetDispatchKeyValue("vecAbsStart", previousPos); // Attempt direct world space coordinates
-                                        beam.SetDispatchKeyValue("vecAbsEnd", currentPos);     // Attempt direct world space coordinates
-                                        beam.SetDispatchKeyValue("model", "sprites/laser.vmt");
-                                        beam.SetDispatchKeyValue("brightness", 200);
-                                        beam.SetDispatchKeyValue("width", 3.0f);
-                                        // For color, use the Color class from CounterStrikeSharp.API.Modules.Utils
-                                        // Ensure 'using CounterStrikeSharp.API.Modules.Utils;' is at the top of the file.
-                                        beam.SetDispatchKeyValue("color", new Color(50, 150, 255, 255)); // R, G, B, Alpha (assuming Color takes alpha)
-                                        beam.SetDispatchKeyValue("lifetime", 0.08f); 
-                                        beam.SetDispatchKeyValue("HDRColorScale", 1.0f);
-                                        
-                                        // Some entities require a specific function to set their owner, or it's done via DispatchKeyValue
-                                        // For beams, it's often not strictly necessary unless for specific visibility/collision rules.
-                                        // If 'OwnerEntity' is a direct property that works, it could be set:
-                                        // if (player != null && player.Pawn != null && player.Pawn.Value != null)
-                                        // {
-                                        //     beam.Owner = player.Pawn.Value; // Or similar property if it exists and is settable
-                                        // }
-
-                                        beam.DispatchSpawn();
+                                        SharpTimerError($"Failed to create CParticleSystem entity for replay trail.");
+                                        return; // Exit this attempt if creation failed
                                     }
+
+                                    // User will need to change this path to their desired .vpcf file
+                                    particleSystem.EffectName = "particles/ambient_fx/ambient_sparks_glow.vpcf"; // Default from Trails example
+
+                                    // Teleport the particle system to the current replay position before starting it.
+                                    // This makes the particle effect emit from this point.
+                                    particleSystem.Teleport(currentPos, new QAngle(0, 0, 0), new Vector(0, 0, 0));
+                                    
+                                    particleSystem.DispatchSpawn();
+                                    particleSystem.AcceptInput("Start"); // Start emitting particles
+
+                                    // Add the particle system to the list for tracking
+                                    playerReplays[player.Slot].replayParticleSystems.Add(particleSystem);
+
+                                    // Lifetime management for this particle burst
+                                    float particleLifetime = 2.0f; // Default lifetime in seconds, user might want to configure this later
+                                    AddTimer(particleLifetime, () =>
+                                    {
+                                        if (particleSystem != null && particleSystem.IsValid)
+                                        {
+                                            // Optional: particleSystem.AcceptInput("Stop"); // May not be needed if Remove is sufficient
+                                            particleSystem.Remove();
+                                        }
+                                    });
+                                    
+                                    // Note: The Trails example also had particle.AcceptInput("FollowEntity", ...);
+                                    // For replays, simply spawning a short-lived effect at each point might be visually better
+                                    // than trying to make one system follow the ghost, unless the ghost is a proper entity to follow.
+                                    // The current approach creates a burst at each point.
                                 }
-                                catch(Exception e)
+                                catch (Exception ex)
                                 {
-                                    SharpTimerError($"Error creating beam with SetDispatchKeyValue: {e.Message}");
+                                    SharpTimerError($"Error creating CParticleSystem trail in ReplayPlayback: {ex.Message}");
                                 }
                             }
                         }
@@ -166,22 +177,32 @@ namespace SharpTimer
             {
                 int totalFrames = playerReplays[player.Slot].replayFrames.Count;
 
-                if (totalFrames <= 128)
+                if (playerReplays[player.Slot].CurrentPlaybackFrame >= totalFrames || playerReplays[player.Slot].CurrentPlaybackFrame < 0) // Check if playback is at or beyond the end, or invalid
                 {
-                    OnRecordingStop(player);
+                    SharpTimerDebug($"Replay for player {player.PlayerName} (Slot: {player.Slot}) finished. CurrentFrame: {playerReplays[player.Slot].CurrentPlaybackFrame}, TotalFrames: {totalFrames}. Cleaning visuals.");
+                    ClearReplayVisuals(player.Slot); // Updated call
+                    
+                    // Stop further replay actions for this player
+                    playerTimers[player.Slot].IsReplaying = false; 
+                    // Potentially call OnRecordingStop(player); if that contains other necessary "stop replay" logic
+                    // For now, focus on IsReplaying = false and beam clear.
+                    // Resetting CurrentPlaybackFrame to 0 might be done if a "view last replay again" feature exists,
+                    // but for a single playthrough, it's done.
+                    playerReplays[player.Slot].CurrentPlaybackFrame = 0; // Reset for any future replay.
+                    
+                    return; // Stop further execution in this tick if replay ended.
                 }
 
-                if (playerReplays[player.Slot].CurrentPlaybackFrame < 0 || playerReplays[player.Slot].CurrentPlaybackFrame >= totalFrames)
-                {
-                    playerReplays[player.Slot].CurrentPlaybackFrame = 0;
-                    Action<CCSPlayerController?, float, bool> adjustVelocity = use2DSpeed ? AdjustPlayerVelocity2D : AdjustPlayerVelocity;
-                    adjustVelocity(player, 0, false);
-                }
+                // This check seems problematic if totalFrames can be low for valid replays.
+                // if (totalFrames <= 128) 
+                // {
+                //     OnRecordingStop(player); // This also sets IsRecordingReplay = false.
+                // }
 
                 if (jumpStatsEnabled) InvalidateJS(player.Slot);
-                ReplayPlayback(player, playerReplays[player.Slot].CurrentPlaybackFrame);
+                ReplayPlayback(player, playerReplays[player.Slot].CurrentPlaybackFrame); // Draw current frame's beams
 
-                playerReplays[player.Slot].CurrentPlaybackFrame++;
+                playerReplays[player.Slot].CurrentPlaybackFrame++; // Advance to next frame
             }
             catch (Exception ex)
             {
@@ -193,8 +214,12 @@ namespace SharpTimer
         {
             try
             {
-                playerReplays.Remove(player.Slot);
-                playerReplays[player.Slot] = new PlayerReplays
+                // Call the centralized cleanup function for the slot
+                ClearReplayVisuals(player.Slot); 
+
+                // Original lines from OnRecordingStart should follow:
+                playerReplays.Remove(player.Slot); 
+                playerReplays[player.Slot] = new PlayerReplays // This creates a new PlayerReplays instance with an empty replayBeams list.
                 {
                     BonusX = bonusX,
                     Style = style
@@ -518,6 +543,41 @@ namespace SharpTimer
             {
                 Console.WriteLine($"Error during deserialization: {ex.Message}");
                 return false;
+            }
+        }
+
+        private void ClearReplayVisuals(int playerSlot)
+        {
+            if (playerReplays.TryGetValue(playerSlot, out PlayerReplays? replayData) && replayData != null)
+            {
+                // Cleanup Particle Systems
+                if (replayData.replayParticleSystems != null && replayData.replayParticleSystems.Count > 0)
+                {
+                    SharpTimerDebug($"Clearing {replayData.replayParticleSystems.Count} particle systems for slot {playerSlot}.");
+                    foreach (var particleSystem in replayData.replayParticleSystems)
+                    {
+                        if (particleSystem != null && particleSystem.IsValid)
+                        {
+                            // particleSystem.AcceptInput("Stop"); // Optional: attempt to stop emission before removal
+                            particleSystem.Remove();
+                        }
+                    }
+                    replayData.replayParticleSystems.Clear();
+                }
+
+                // Cleanup Beams (if replayBeams list still exists and is managed)
+                if (replayData.replayBeams != null && replayData.replayBeams.Count > 0)
+                {
+                    SharpTimerDebug($"Clearing {replayData.replayBeams.Count} beams for slot {playerSlot} (if any).");
+                    foreach (var beam in replayData.replayBeams) // Assuming replayBeams is List<CEnvBeam>
+                    {
+                        if (beam != null && beam.IsValid)
+                        {
+                            beam.Remove();
+                        }
+                    }
+                    replayData.replayBeams.Clear();
+                }
             }
         }
     }
