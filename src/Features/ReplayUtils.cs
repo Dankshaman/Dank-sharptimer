@@ -103,10 +103,10 @@ namespace SharpTimer
                         player.PrintToCenter(replayButtons);
                     }
 
-                    if (plackbackTick > 0) // Ensure there's a previous frame
+                    if (plackbackTick > 0) // Ensure there's a previous frame and process every 10th frame
                     {
                         var currentFrameData = playerReplays[player.Slot].replayFrames[plackbackTick];
-                        var previousFrameData = playerReplays[player.Slot].replayFrames[plackbackTick - 1];
+                        var previousFrameData = playerReplays[player.Slot].replayFrames[plackbackTick - 2];
 
                         if (currentFrameData != null && currentFrameData.Position != null && previousFrameData != null && previousFrameData.Position != null)
                         {
