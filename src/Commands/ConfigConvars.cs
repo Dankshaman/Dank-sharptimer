@@ -1810,5 +1810,90 @@ namespace SharpTimer
 
             remoteSurfDataSource = $"{args}";
         }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_width", "Sets the width of the replay bot's trail.")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailWidthConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (float.TryParse(args, NumberStyles.Any, CultureInfo.InvariantCulture, out float width) && width > 0)
+            {
+                SharpTimer.replayBotTrailWidth = width;
+                SharpTimerConPrint($"Replay bot trail width set to {width}.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid width value. Please provide a positive float.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_color_r", "Sets the Red component of the replay bot's trail color (0-255).")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailColorRConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (int.TryParse(args, out int colorValue) && colorValue >= 0 && colorValue <= 255)
+            {
+                SharpTimer.replayBotTrailColorR = colorValue;
+                SharpTimerConPrint($"Replay bot trail Red component set to {colorValue}.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid Red component value. Please provide an integer between 0 and 255.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_color_g", "Sets the Green component of the replay bot's trail color (0-255).")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailColorGConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (int.TryParse(args, out int colorValue) && colorValue >= 0 && colorValue <= 255)
+            {
+                SharpTimer.replayBotTrailColorG = colorValue;
+                SharpTimerConPrint($"Replay bot trail Green component set to {colorValue}.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid Green component value. Please provide an integer between 0 and 255.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_color_b", "Sets the Blue component of the replay bot's trail color (0-255).")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailColorBConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (int.TryParse(args, out int colorValue) && colorValue >= 0 && colorValue <= 255)
+            {
+                SharpTimer.replayBotTrailColorB = colorValue;
+                SharpTimerConPrint($"Replay bot trail Blue component set to {colorValue}.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid Blue component value. Please provide an integer between 0 and 255.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_custom_color_enabled", "Enables/disables custom color for the replay bot's trail.")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailCustomColorEnabledConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim().ToLower();
+            if (args == "true" || args == "1")
+            {
+                SharpTimer.replayBotTrailCustomColorEnabled = true;
+                SharpTimerConPrint("Custom color for replay bot trail enabled.");
+            }
+            else if (args == "false" || args == "0")
+            {
+                SharpTimer.replayBotTrailCustomColorEnabled = false;
+                SharpTimerConPrint("Custom color for replay bot trail disabled.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid boolean value. Please provide 'true', 'false', '1', or '0'.");
+            }
+        }
     }
 }
