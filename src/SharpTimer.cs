@@ -36,6 +36,12 @@ namespace SharpTimer
         public static int replayBotTrailColorB = 0;
         public static bool replayBotTrailCustomColorEnabled = false;
 
+        public static bool replayBeamColorDynamicEnabled;
+        public static string replayBeamColorVelocityThresholdsRaw = "500,1000,1500,2000,2500,3000,3500,4000";
+        public static string replayBeamColorsRaw = "lime,greenyellow,yellow,gold,orange,darkorange,red,crimson";
+        public static List<int> ReplayBeamVelocityThresholds = new List<int>();
+        public static List<System.Drawing.Color> ReplayBeamColors = new List<System.Drawing.Color>();
+
         private static readonly MemoryFunctionVoid<CCSPlayerPawn, CSPlayerState> StateTransition = new(GameData.GetSignature("StateTransition"));
         private readonly INetworkServerService networkServerService = new();
         private int movementServices;
@@ -48,6 +54,41 @@ namespace SharpTimer
 
             defaultServerHostname = ConVar.Find("hostname")!.StringValue;
             Server.ExecuteCommand($"execifexists SharpTimer/config.cfg");
+
+            var dynamicBeamConvar = ConVar.Find("sharptimer_replay_beam_color_dynamic_enabled");
+            if (dynamicBeamConvar != null)
+            {
+                replayBeamColorDynamicEnabled = dynamicBeamConvar.GetPrimitiveValue<bool>();
+            }
+            else
+            {
+                SharpTimerError("Failed to find ConVar 'sharptimer_replay_beam_color_dynamic_enabled'. Using default value 'false'.");
+                replayBeamColorDynamicEnabled = false;
+            }
+
+            var thresholdsConvar = ConVar.Find("sharptimer_replay_beam_color_velocity_thresholds");
+            if (thresholdsConvar != null)
+            {
+                replayBeamColorVelocityThresholdsRaw = thresholdsConvar.GetPrimitiveValue<string>();
+            }
+            else
+            {
+                SharpTimerError("Failed to find ConVar 'sharptimer_replay_beam_color_velocity_thresholds'. Using default value '\"500,1000,1500,2000,2500,3000,3500,4000\"'.");
+                replayBeamColorVelocityThresholdsRaw = "349,699,1049,1399,1749,2099,2449,2799,3149,3499,4000";
+            }
+
+            var colorsConvar = ConVar.Find("sharptimer_replay_beam_colors");
+            if (colorsConvar != null)
+            {
+                replayBeamColorsRaw = colorsConvar.GetPrimitiveValue<string>();
+            }
+            else
+            {
+                SharpTimerError("Failed to find ConVar 'sharptimer_replay_beam_colors'. Using default value '\"lime,greenyellow,yellow,gold,orange,darkorange,red,crimson\"'.");
+                replayBeamColorsRaw = "LimeGreen,Lime,GreenYellow,Yellow,Gold,Orange,DarkOrange,Tomato,OrangeRed,Red,Crimson";
+            }
+
+            ParseReplayBeamValues();
 
             gameDir = Server.GameDirectory;
             SharpTimerDebug($"Set gameDir to {gameDir}");
@@ -134,7 +175,7 @@ namespace SharpTimer
                     {
                         if (player is null || !player.IsValid)
                             return HookResult.Continue;
-                        
+
                         if (playerTimers[player.Slot].HidePlayers)
                             sound.Recipients.Remove(player);
                     }
@@ -150,7 +191,7 @@ namespace SharpTimer
                     {
                         if (player is null || !player.IsValid)
                             return HookResult.Continue;
-                        
+
                         if (playerTimers[player.Slot].HidePlayers)
                             sound.Recipients.Remove(player);
                     }
@@ -166,7 +207,7 @@ namespace SharpTimer
                     {
                         if (player is null || !player.IsValid)
                             return HookResult.Continue;
-                        
+
                         if (playerTimers[player.Slot].HidePlayers)
                             sound.Recipients.Remove(player);
                     }
@@ -183,12 +224,12 @@ namespace SharpTimer
 
                 if (!applyInfiniteAmmo)
                     return HookResult.Continue;
-                
+
                 ApplyInfiniteClip(player);
                 ApplyInfiniteReserve(player);
                 return HookResult.Continue;
             });
-            
+
             RegisterListener<Listeners.OnMapStart>(OnMapStartHandler);
 
             RegisterEventHandler<EventPlayerConnectFull>((@event, info) =>
@@ -383,7 +424,153 @@ namespace SharpTimer
 
             SharpTimerConPrint("Plugin Loaded");
         }
-        
+
+        public void ParseReplayBeamValues()
+        {
+            ReplayBeamVelocityThresholds.Clear();
+            try
+            {
+                if (!string.IsNullOrEmpty(replayBeamColorVelocityThresholdsRaw))
+                {
+                    var thresholds = replayBeamColorVelocityThresholdsRaw.Split(',');
+                    foreach (var threshold in thresholds)
+                    {
+                        if (int.TryParse(threshold.Trim(), out int val))
+                        {
+                            ReplayBeamVelocityThresholds.Add(val);
+                        }
+                        else
+                        {
+                            SharpTimerError($"Invalid integer value in sharptimer_replay_beam_color_velocity_thresholds: {threshold}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SharpTimerError($"Error parsing sharptimer_replay_beam_color_velocity_thresholds: {ex.Message}. Using default values.");
+                ReplayBeamVelocityThresholds.AddRange(new int[] { 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000 });
+            }
+
+            ReplayBeamColors.Clear();
+            try
+            {
+                if (!string.IsNullOrEmpty(replayBeamColorsRaw))
+                {
+                    var colors = replayBeamColorsRaw.Split(',');
+                    foreach (var colorName in colors)
+                    {
+                        ReplayBeamColors.Add(ParseColorString(this, colorName.Trim()));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SharpTimerError($"Error parsing sharptimer_replay_beam_colors: {ex.Message}. Using default values.");
+                ReplayBeamColors.AddRange(new System.Drawing.Color[] {
+                    System.Drawing.Color.Lime, System.Drawing.Color.GreenYellow, System.Drawing.Color.Yellow, System.Drawing.Color.Gold,
+                    System.Drawing.Color.Orange, System.Drawing.Color.DarkOrange, System.Drawing.Color.Red, System.Drawing.Color.Crimson
+                });
+            }
+
+            if (ReplayBeamVelocityThresholds.Count != ReplayBeamColors.Count)
+            {
+                SharpTimerError("Mismatch between the number of replay beam velocity thresholds and colors. Please check your config. Using default values if lists are empty or mismatched.");
+                // Prevent issues if one list is empty or they mismatch significantly after partial parsing
+                if (ReplayBeamVelocityThresholds.Count == 0 || ReplayBeamColors.Count == 0 || ReplayBeamVelocityThresholds.Count != ReplayBeamColors.Count)
+                {
+                    SharpTimerWarning("ReplayBeamVelocityThresholds or ReplayBeamColors lists are empty or mismatched after attempting to parse. Resetting to defaults.");
+                    ReplayBeamVelocityThresholds.Clear();
+                    ReplayBeamVelocityThresholds.AddRange(new int[] { 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000 });
+                    ReplayBeamColors.Clear();
+                    ReplayBeamColors.AddRange(new System.Drawing.Color[] {
+                        System.Drawing.Color.Lime, System.Drawing.Color.GreenYellow, System.Drawing.Color.Yellow, System.Drawing.Color.Gold,
+                        System.Drawing.Color.Orange, System.Drawing.Color.DarkOrange, System.Drawing.Color.Red, System.Drawing.Color.Crimson
+                    });
+                }
+            }
+        }
+
+        public static System.Drawing.Color ParseColorString(SharpTimer sharpTimerInstance, string colorString)
+        {
+            if (string.IsNullOrWhiteSpace(colorString))
+            {
+                sharpTimerInstance.SharpTimerError($"ParseColorString: Input color string is null or empty. Returning White.");
+                return System.Drawing.Color.White;
+            }
+
+            string trimmedColorString = colorString.Trim();
+
+            // Try parsing as Hex (e.g., #RRGGBB or #RGB)
+            if (trimmedColorString.StartsWith("#"))
+            {
+                try
+                {
+                    return System.Drawing.ColorTranslator.FromHtml(trimmedColorString);
+                }
+                catch (Exception ex)
+                {
+                    sharpTimerInstance.SharpTimerDebug($"ParseColorString: Failed to parse hex '{trimmedColorString}': {ex.Message}. Trying other formats.");
+                }
+            }
+
+            // Try parsing as RGB triplet (e.g., "255,0,0")
+            var rgbParts = trimmedColorString.Split(',');
+            if (rgbParts.Length == 3)
+            {
+                try
+                {
+                    int r = int.Parse(rgbParts[0].Trim());
+                    int g = int.Parse(rgbParts[1].Trim());
+                    int b = int.Parse(rgbParts[2].Trim());
+                    return System.Drawing.Color.FromArgb(r, g, b);
+                }
+                catch (FormatException ex)
+                {
+                    sharpTimerInstance.SharpTimerDebug($"ParseColorString: Failed to parse RGB triplet '{trimmedColorString}' due to format: {ex.Message}. Trying other formats.");
+                }
+                catch (ArgumentOutOfRangeException ex)
+                {
+                    sharpTimerInstance.SharpTimerDebug($"ParseColorString: Failed to parse RGB triplet '{trimmedColorString}' due to out of range values: {ex.Message}. Trying other formats.");
+                }
+            }
+
+            // Try parsing as a known color name
+            try
+            {
+                System.Drawing.Color namedColor = System.Drawing.Color.FromName(trimmedColorString);
+                if (namedColor.IsKnownColor)
+                {
+                    return namedColor;
+                }
+                // FromName returns a color even if the name is not known (e.g. Color [A=255, R=0, G=0, B=0] for an invalid name if it's not "Transparent")
+                // We check IsKnownColor. If it's not known, and it's not Transparent (which is a valid case where IsKnownColor might be false depending on context),
+                // then it's likely an invalid name that FromName didn't throw on but didn't match.
+                // However, a more direct check is just to see if its ARGB is 0,0,0,0 (transparent black) which is a common result for invalid names.
+                // For simplicity, if IsKnownColor is false, we assume it's not a valid *named* color we want, unless it's transparent.
+                if (!namedColor.IsKnownColor && namedColor.A == 0 && namedColor.R == 0 && namedColor.G == 0 && namedColor.B == 0 && !trimmedColorString.Equals("transparent", StringComparison.OrdinalIgnoreCase))
+                {
+                    sharpTimerInstance.SharpTimerDebug($"ParseColorString: Color name '{trimmedColorString}' is not a known color. Defaulting to White.");
+                }
+                else if (namedColor.IsKnownColor) // It is a known color name
+                {
+                    return namedColor;
+                }
+                // If it's not a known color but FromName didn't error and produced something non-default (e.g. user typed ARGB values as name)
+                // we will let it pass, though this scenario is less common for typical named colors.
+                // The primary goal here is to catch clearly invalid names that result in a default/empty color.
+                // The previous hex and RGB parsing should catch numerical formats.
+
+            }
+            catch (ArgumentException ex) // FromName can throw ArgumentException for truly invalid names
+            {
+                sharpTimerInstance.SharpTimerDebug($"ParseColorString: Failed to parse named color '{trimmedColorString}': {ex.Message}. Defaulting to White.");
+            }
+
+            sharpTimerInstance.SharpTimerError($"ParseColorString: Unable to determine color format for '{trimmedColorString}'. Returning White.");
+            return System.Drawing.Color.White;
+        }
+
         private void ApplyInfiniteClip(CCSPlayerController player)
         {
             var activeWeaponHandle = player.PlayerPawn.Value?.WeaponServices?.ActiveWeapon;
@@ -456,7 +643,7 @@ namespace SharpTimer
                         ParseInputs(player, baseCmd.GetSideMove(), moveLeft, moveRight);
                         ParseStrafes(player, userCmd.GetViewAngles()!);
                     }
-                    
+
                     // Style Stuff
                     if ((playerTimers[player.Slot].IsTimerRunning || playerTimers[player.Slot].IsBonusTimerRunning) && playerTimers[player.Slot].currentStyle.Equals(2) && (moveLeft || moveRight)) //sideways
                     {
@@ -537,6 +724,11 @@ namespace SharpTimer
             StateTransition.Unhook(Hook_StateTransition, HookMode.Post);
 
             SharpTimerConPrint("Plugin Unloaded");
+        }
+
+        public void SharpTimerWarning(string message)
+        {
+            Console.WriteLine($"[SharpTimer] [WARNING] {message}");
         }
     }
 }

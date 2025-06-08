@@ -103,15 +103,16 @@ namespace SharpTimer
                         player.PrintToCenter(replayButtons);
                     }
 
-                    if (plackbackTick > 0) // Ensure there's a previous frame
+                    if (plackbackTick > 0) // Ensure there's a previous frame and process every 10th frame
                     {
                         var currentFrameData = playerReplays[player.Slot].replayFrames[plackbackTick];
-                        var previousFrameData = playerReplays[player.Slot].replayFrames[plackbackTick - 1];
+                        var previousFrameData = playerReplays[player.Slot].replayFrames[plackbackTick - 2];
 
-                        if (currentFrameData != null && currentFrameData.Position != null && previousFrameData != null && previousFrameData.Position != null)
+                        if (currentFrameData != null && currentFrameData.Position != null && previousFrameData != null && previousFrameData.Position != null && currentFrameData.Speed != null)
                         {
                             Vector currentPos = ReplayVector.ToVector(currentFrameData.Position);
                             Vector previousPos = ReplayVector.ToVector(previousFrameData.Position);
+                            Vector currentSpeedVec = ReplayVector.ToVector(currentFrameData.Speed);
 
                             if (currentPos != null && previousPos != null && currentPos != previousPos) // Ensure positions are valid and distinct
                             {
@@ -142,14 +143,42 @@ namespace SharpTimer
                                     }
                                     Utilities.SetStateChanged(beam, "CBeam", "m_vecEndPos"); // Use "CBeam" as per original working version for EndPos
 
-                                    // Visual Properties
-                                    if (SharpTimer.replayBotTrailCustomColorEnabled)
+                                    // Visual Properties - Dynamic Beam Color Logic
+                                    if (SharpTimer.replayBeamColorDynamicEnabled && SharpTimer.ReplayBeamVelocityThresholds.Count > 0 && SharpTimer.ReplayBeamColors.Count == SharpTimer.ReplayBeamVelocityThresholds.Count)
                                     {
-                                        beam.Render = Color.FromArgb(255, SharpTimer.replayBotTrailColorR, SharpTimer.replayBotTrailColorG, SharpTimer.replayBotTrailColorB);
+                                        float speed = SharpTimer.use2DSpeed ? new Vector(currentSpeedVec.X, currentSpeedVec.Y, 0).Length() : currentSpeedVec.Length();
+                                        Color beamColor = SharpTimer.ReplayBeamColors[0]; // Default to the first color
+
+                                        for (int i = 0; i < SharpTimer.ReplayBeamVelocityThresholds.Count; i++)
+                                        {
+                                            if (speed >= SharpTimer.ReplayBeamVelocityThresholds[i])
+                                            {
+                                                beamColor = SharpTimer.ReplayBeamColors[i];
+                                            }
+                                            else
+                                            {
+                                                // If speed is less than the current threshold, use the color from the previous threshold (or the first if this is the first threshold)
+                                                // However, the loop structure ensures `beamColor` is already set to the highest met threshold's color.
+                                                // So, if speed is less, the current beamColor (from a lower or initial threshold) is correct.
+                                                // We can break if we want the first matching threshold from low to high, but current logic implies highest matched.
+                                                // For "highest met threshold", we simply continue and overwrite.
+                                                // For "first met threshold" (color for 500-999, then 1000-1499 etc):
+                                                // beamColor = SharpTimer.ReplayBeamColors[i]; break; // if we want this behavior
+                                            }
+                                        }
+                                        beam.Render = beamColor;
                                     }
                                     else
                                     {
-                                        beam.Render = Color.FromArgb(255, 255, 255, 0); // Default yellow
+                                        // Fallback to existing logic if dynamic is disabled or misconfigured
+                                        if (SharpTimer.replayBotTrailCustomColorEnabled)
+                                        {
+                                            beam.Render = Color.FromArgb(255, SharpTimer.replayBotTrailColorR, SharpTimer.replayBotTrailColorG, SharpTimer.replayBotTrailColorB);
+                                        }
+                                        else
+                                        {
+                                            beam.Render = Color.FromArgb(255, 255, 255, 0); // Default yellow
+                                        }
                                     }
 
                                     beam.Width = SharpTimer.replayBotTrailWidth;

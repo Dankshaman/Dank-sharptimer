@@ -22,6 +22,12 @@ using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
 
 namespace SharpTimer
 {
+    internal static class CompileTimeStamp
+    {
+        // Initialize with current time's Ticks. DateTime constructor expects Ticks for this overload.
+        internal static readonly long CompileTime = DateTime.UtcNow.Ticks;
+    }
+
     public partial class SharpTimer
     {
         public string compileTimeStamp = new DateTime(CompileTimeStamp.CompileTime, DateTimeKind.Utc).ToString();
@@ -78,7 +84,7 @@ namespace SharpTimer
         public int cpTriggerCount;
         private bool useCheckpointTriggers = false;
         public bool useCheckpointVerification = true;
-        
+
         public bool applyInfiniteAmmo = true;
         public bool useAnticheat = false;
 
@@ -136,7 +142,7 @@ namespace SharpTimer
 
         // Points settings
         public int baselineT1 = 25;
-        public int baselineT2 =  50;
+        public int baselineT2 = 50;
         public int baselineT3 = 100;
         public int baselineT4 = 200;
         public int baselineT5 = 400;
@@ -200,7 +206,7 @@ namespace SharpTimer
         public bool removeLegsEnabled = false;
         public bool removeCollisionEnabled = true;
         public bool disableDamage = true;
-        public bool use2DSpeed = false;
+        public static bool use2DSpeed = false;
 
         public bool cpEnabled = false;
         public bool removeCpRestrictEnabled = false;
