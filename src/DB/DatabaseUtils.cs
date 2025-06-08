@@ -759,6 +759,20 @@ namespace SharpTimer
                             var prevSR = await GetPreviousPlayerRecordFromDatabase(prevSRID.Item1, currentMapNamee, prevSRID.Item2, bonusX, style);
                             await upsertCommand!.ExecuteNonQueryAsync();
                             Server.NextFrame(() => SharpTimerDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
+
+                            // Update currentMapRecordTimeSeconds if this is a new SR for the main map (style 0, bonus 0)
+                            if (bonusX == 0 && style == 0 && (prevSR == 0 || timerTicks < prevSR)) // prevSR == 0 means it's the first record
+                            {
+                                float tickRate = 64.0f;
+                                if(CounterStrikeSharp.API.Server.TickInterval > 0)
+                                {
+                                    tickRate = 1.0f / CounterStrikeSharp.API.Server.TickInterval;
+                                }
+                                float newRecordSeconds = (float)timerTicks / tickRate;
+                                currentMapRecordTimeSeconds = newRecordSeconds;
+                                SharpTimerDebug($"New MAIN MAP SR by {playerName}! currentMapRecordTimeSeconds updated to: {currentMapRecordTimeSeconds}s (Ticks: {timerTicks}). Tickrate used: {tickRate}");
+                            }
+
                             if (enableDb && IsAllowedPlayer(player)) await RankCommandHandler(player, steamId, playerSlot, playerName, true, style);
                             if (globalRanksEnabled == true) await SavePlayerPoints(steamId, playerName, playerSlot, timerTicks, dBtimerTicks, beatPB, bonusX, style, dBtimesFinished);
                             if (IsAllowedPlayer(player)) Server.NextFrame(() => _ = Task.Run(async () => await PrintMapTimeToChat(player!, steamId, playerName, dBtimerTicks, timerTicks, bonusX, dBtimesFinished, style, prevSR)));
@@ -867,6 +881,21 @@ namespace SharpTimer
                             var prevSRID = await GetMapRecordSteamIDFromDatabase(bonusX, 0, style);
                             var prevSR = await GetPreviousPlayerRecordFromDatabase(prevSRID.Item1, currentMapNamee, prevSRID.Item2, bonusX, style);
                             await upsertCommand!.ExecuteNonQueryAsync();
+
+                            // Update currentMapRecordTimeSeconds if this is a new SR for the main map (style 0, bonus 0)
+                            // This case is for when the player is the first to set a record on the map.
+                            if (bonusX == 0 && style == 0 && (prevSR == 0 || timerTicks < prevSR)) // prevSR == 0 indicates first record
+                            {
+                                float tickRate = 64.0f;
+                                if (CounterStrikeSharp.API.Server.TickInterval > 0)
+                                {
+                                    tickRate = 1.0f / CounterStrikeSharp.API.Server.TickInterval;
+                                }
+                                float newRecordSeconds = (float)timerTicks / tickRate;
+                                currentMapRecordTimeSeconds = newRecordSeconds;
+                                SharpTimerDebug($"New MAIN MAP SR by {playerName} (first record)! currentMapRecordTimeSeconds updated to: {currentMapRecordTimeSeconds}s (Ticks: {timerTicks}). Tickrate used: {tickRate}");
+                            }
+
                             if (globalRanksEnabled == true) await SavePlayerPoints(steamId, playerName, playerSlot, timerTicks, dBtimerTicks, beatPB, bonusX, style, dBtimesFinished);
                             if (style == 0 && (stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, playerSlot)));
                             Server.NextFrame(() => SharpTimerDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
@@ -3258,6 +3287,98 @@ namespace SharpTimer
             {
                 SharpTimerError($"Error adding JSON times to the database: {ex.Message}");
             }
+        }
+
+        public async Task<PlayerRecord?> FetchTopPlayerRecordAsync(string mapName, int bonusX = 0, int style = 0)
+        {
+            if (string.IsNullOrEmpty(mapName)) return null;
+
+            PlayerRecord? topRecord = null;
+            string tableName = "PlayerRecords"; // Direct table name
+
+            try
+            {
+                using var connection = await OpenConnectionAsync(); // Use existing helper
+                if (connection == null || connection.State != ConnectionState.Open)
+                {
+                    SharpTimerError("Failed to get or open database connection for FetchTopPlayerRecordAsync.");
+                    return null;
+                }
+
+                string query;
+                // Conditionally build the query
+                if (bonusX == 0 && style == 0)
+                {
+                    query = $"SELECT SteamID, PlayerName, TimerTicks FROM {tableName} WHERE MapName = @mapName AND TimerTicks > 0 ORDER BY TimerTicks ASC LIMIT 1;";
+                    SharpTimerDebug($"FetchTopPlayerRecordAsync: Using query for main map SR: {query}");
+                }
+                else
+                {
+                    query = $"SELECT SteamID, PlayerName, TimerTicks FROM {tableName} WHERE MapName = @mapName AND Bonus = @bonusVal AND Style = @styleVal AND TimerTicks > 0 ORDER BY TimerTicks ASC LIMIT 1;";
+                    SharpTimerDebug($"FetchTopPlayerRecordAsync: Using query for bonus/style SR: {query}");
+                }
+
+                using var command = connection.CreateCommand();
+                command.CommandText = query;
+
+                // Add parameters
+                var mapNameParam = command.CreateParameter();
+                mapNameParam.ParameterName = "@mapName";
+                mapNameParam.Value = mapName;
+                command.Parameters.Add(mapNameParam);
+
+                if (!(bonusX == 0 && style == 0)) // Only add these if they are in the query
+                {
+                    var bonusParam = command.CreateParameter();
+                    bonusParam.ParameterName = "@bonusVal";
+                    bonusParam.Value = bonusX;
+                    command.Parameters.Add(bonusParam);
+
+                    var styleParam = command.CreateParameter();
+                    styleParam.ParameterName = "@styleVal";
+                    styleParam.Value = style;
+                    command.Parameters.Add(styleParam);
+                }
+
+                // DbCommand command; // Use DbCommand for broader compatibility
+                // switch (dbType)
+                // {
+                //     case DatabaseType.MySQL:
+                //         command = new MySqlCommand(query, (MySqlConnection)connection);
+                //         break;
+                //     case DatabaseType.PostgreSQL:
+                //         command = new NpgsqlCommand(query, (NpgsqlConnection)connection);
+                //         // Npgsql uses :paramName or positional $1, $2 for parameters.
+                //         // The AddParameterWithValue helper in SharpTimer should handle this.
+                //         break;
+                //     case DatabaseType.SQLite:
+                //         command = new SQLiteCommand(query, (SQLiteConnection)connection);
+                //         break;
+                //     default:
+                //         SharpTimerError($"Unsupported database type: {dbType} in FetchTopPlayerRecordAsync");
+                //         return null;
+                // }
+                // command.AddParameterWithValue("@mapName", mapName);
+                // command.AddParameterWithValue("@bonusVal", bonusX);
+                // command.AddParameterWithValue("@styleVal", style);
+
+                using var reader = await ((System.Data.Common.DbCommand)command).ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    topRecord = new PlayerRecord
+                    {
+                        SteamID = reader.GetString(0),
+                        PlayerName = reader.GetString(1),
+                        TimerTicks = reader.GetInt32(2),
+                        MapName = mapName
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                SharpTimerError($"Error fetching top player record for map {mapName}, Bonus {bonusX}, Style {style}: {ex.Message}");
+            }
+            return topRecord;
         }
     }
 }

@@ -152,6 +152,33 @@ namespace SharpTimer
 
                                     // Add to list for persistent trails
                                     playerReplays[player.Slot].replayBeams.Add(beam);
+
+                                    // Determine lifetime for this beam segment
+                                    float beamSegmentLifetime = 2.0f;
+                                    string lifetimeSource = "default"; // Renamed from lifetimeSourceInfo for consistency
+                                    if (currentMapRecordTimeSeconds > 0.0f)
+                                    {
+                                        beamSegmentLifetime = currentMapRecordTimeSeconds; // REVERTED
+                                        lifetimeSource = $"SR ({currentMapRecordTimeSeconds}s)";
+                                    }
+                                    SharpTimerDebug($"Beam lifetime for {player.PlayerName}: {beamSegmentLifetime}s (Source: {lifetimeSource}). currentMapRecordTimeSeconds is {currentMapRecordTimeSeconds}s.");
+
+                                    // Schedule removal of the beam entity AND its reference from the list
+                                    var playerSlotForTimer = player.Slot;
+                                    var beamToRemove = beam;
+
+                                    AddTimer(beamSegmentLifetime, () =>
+                                    {
+                                        if (beamToRemove != null && beamToRemove.IsValid)
+                                        {
+                                            beamToRemove.Remove();
+                                        }
+
+                                        if (playerReplays.TryGetValue(playerSlotForTimer, out PlayerReplays? replayData) && replayData != null && replayData.replayBeams != null)
+                                        {
+                                            replayData.replayBeams.Remove(beamToRemove);
+                                        }
+                                    });
                                 }
                                 catch (Exception ex)
                                 {
@@ -170,6 +197,10 @@ namespace SharpTimer
 
         private void ReplayPlay(CCSPlayerController player)
         {
+            if (playerTimers.TryGetValue(player.Slot, out var timerInfo) && timerInfo.IsReplaying) // Check if it's a replaying bot
+            {
+                SharpTimerDebug($"ReplayPlay called for {player.PlayerName}. CurrentPlaybackFrame: {playerReplays[player.Slot].CurrentPlaybackFrame}. currentMapRecordTimeSeconds: {currentMapRecordTimeSeconds}s");
+            }
             try
             {
                 int totalFrames = playerReplays[player.Slot].replayFrames.Count;
@@ -467,14 +498,18 @@ namespace SharpTimer
                 if (bot.IsHLTV)
                     return;
 
+                SharpTimerDebug($"OnReplayBotConnect for bot {bot.PlayerName} (Slot {botSlot}). Scheduling ReplayHandler start.");
                 AddTimer(3.0f, () =>
                 {
+                    SharpTimerDebug($"OnReplayBotConnect: 3s timer expired for bot {bot.PlayerName}. Initializing bot for replay.");
                     OnPlayerConnect(bot, true);
                     connectedReplayBots[botSlot] = new CCSPlayerController(bot.Handle);
                     ChangePlayerName(bot, replayBotName);
                     playerTimers[botSlot].IsTimerBlocked = true;
-                    _ = Task.Run(async () => await ReplayHandler(bot, botSlot)); // Assumes ReplayHandler exists elsewhere or this is a placeholder
-                    SharpTimerDebug($"Starting replay for {botName}");
+
+                    SharpTimerDebug($"OnReplayBotConnect: About to start ReplayHandler task for bot {bot.PlayerName}. currentMapRecordTimeSeconds at this point: {currentMapRecordTimeSeconds}s");
+                    _ = Task.Run(async () => await ReplayHandler(bot, botSlot));
+                    SharpTimerDebug($"OnReplayBotConnect: ReplayHandler task started for {bot.PlayerName}.");
                 });
             }
             catch (Exception ex)
@@ -496,7 +531,7 @@ namespace SharpTimer
                 (srSteamID, srPlayerName, srTime) = await GetMapRecordSteamID(bonusX);
             }
 
-            if ((srSteamID == "null" || srPlayerName == "null" || srTime == "null") && topSteam.ID != "x") return false;
+            if ((srSteamID == "null" || srPlayerName == "null" || srTime == "null") && topSteamID != "x") return false;
 
             string fileName = $"{(topSteamID == "x" ? $"{srSteamID}" : $"{topSteamID}")}_replay.json";
             string playerReplaysPath;

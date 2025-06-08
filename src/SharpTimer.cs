@@ -26,6 +26,8 @@ namespace SharpTimer
     [MinimumApiVersion(287)]
     public partial class SharpTimer : BasePlugin
     {
+        private float currentMapRecordTimeSeconds = -1.0f; // New variable for server record time
+        private bool serverRecordTimeInitialized = false;
         public required IRunCommand RunCommand;
         private static readonly MemoryFunctionVoid<CCSPlayerPawn, CSPlayerState> StateTransition = new(GameData.GetSignature("StateTransition"));
         private readonly INetworkServerService networkServerService = new();
