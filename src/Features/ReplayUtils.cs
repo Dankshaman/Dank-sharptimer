@@ -68,7 +68,7 @@ namespace SharpTimer
 
                 if (playerTimers.TryGetValue(player.Slot, out PlayerTimerInfo? value))
                 {
-                    
+
                     var replayFrame = playerReplays[player.Slot].replayFrames[plackbackTick];
 
                     if (((PlayerFlags)replayFrame.Flags & PlayerFlags.FL_ONGROUND) != 0)
@@ -148,10 +148,6 @@ namespace SharpTimer
                                     beam.Width = 3.0f; // Placeholder - User needs to set desired value
                                     // Utilities.SetStateChanged(beam, "CBeam", "m_flWidth"); // REMOVED
 
-                                    // SpriteName and SetModel are no longer explicitly set to null.
-                                    // Relying on CEnvBeam's default sprite behavior.
-                                    // Utilities.SetStateChanged(beam, "CBeam", "m_iszSpriteName"); // REMOVED
-
                                     beam.DispatchSpawn();
 
                                     // Add to list for persistent trails
@@ -178,30 +174,22 @@ namespace SharpTimer
             {
                 int totalFrames = playerReplays[player.Slot].replayFrames.Count;
 
-                if (playerReplays[player.Slot].CurrentPlaybackFrame >= totalFrames || playerReplays[player.Slot].CurrentPlaybackFrame < 0) // Check if playback is at or beyond the end, or invalid
+                if (totalFrames <= 128) // User's version includes this check
                 {
-                    SharpTimerDebug($"Replay for player {player.PlayerName} (Slot: {player.Slot}) finished. CurrentFrame: {playerReplays[player.Slot].CurrentPlaybackFrame}, TotalFrames: {totalFrames}. Cleaning visuals.");
-                    ClearReplayVisuals(player.Slot); // Updated call
-
-                    // Stop further replay actions for this player
-                    playerTimers[player.Slot].IsReplaying = false;
-                    // Potentially call OnRecordingStop(player); if that contains other necessary "stop replay" logic
-                    // For now, focus on IsReplaying = false and beam clear.
-                    // Resetting CurrentPlaybackFrame to 0 might be done if a "view last replay again" feature exists,
-                    // but for a single playthrough, it's done.
-                    playerReplays[player.Slot].CurrentPlaybackFrame = 0; // Reset for any future replay.
-
-                    return; // Stop further execution in this tick if replay ended.
+                    OnRecordingStop(player); // This sets IsRecordingReplay = false and MoveType.
                 }
 
-                // This check seems problematic if totalFrames can be low for valid replays.
-                // if (totalFrames <= 128)
-                // {
-                //     OnRecordingStop(player); // This also sets IsRecordingReplay = false.
-                // }
+                if (playerReplays[player.Slot].CurrentPlaybackFrame < 0 || playerReplays[player.Slot].CurrentPlaybackFrame >= totalFrames)
+                {
+                    // User's version does not ClearReplayVisuals here. If looping, this means trails will accumulate.
+                    playerReplays[player.Slot].CurrentPlaybackFrame = 0;
+                    Action<CCSPlayerController?, float, bool> adjustVelocity = use2DSpeed ? AdjustPlayerVelocity2D : AdjustPlayerVelocity;
+                    adjustVelocity(player, 0, false); // Resets velocity.
+                    // No 'return;' here and IsReplaying is not set to false, so it will loop immediately.
+                }
 
                 if (jumpStatsEnabled) InvalidateJS(player.Slot);
-                ReplayPlayback(player, playerReplays[player.Slot].CurrentPlaybackFrame); // Draw current frame's beams
+                ReplayPlayback(player, playerReplays[player.Slot].CurrentPlaybackFrame); // Play current frame & draw visuals
 
                 playerReplays[player.Slot].CurrentPlaybackFrame++; // Advance to next frame
             }
@@ -475,8 +463,8 @@ namespace SharpTimer
             {
                 var botSlot = bot.Slot;
                 var botName = bot.PlayerName;
-                
-                if(bot.IsHLTV)
+
+                if (bot.IsHLTV)
                     return;
 
                 AddTimer(3.0f, () =>
@@ -485,7 +473,7 @@ namespace SharpTimer
                     connectedReplayBots[botSlot] = new CCSPlayerController(bot.Handle);
                     ChangePlayerName(bot, replayBotName);
                     playerTimers[botSlot].IsTimerBlocked = true;
-                    _ = Task.Run(async () => await ReplayHandler(bot, botSlot));
+                    _ = Task.Run(async () => await ReplayHandler(bot, botSlot)); // Assumes ReplayHandler exists elsewhere or this is a placeholder
                     SharpTimerDebug($"Starting replay for {botName}");
                 });
             }
@@ -508,7 +496,7 @@ namespace SharpTimer
                 (srSteamID, srPlayerName, srTime) = await GetMapRecordSteamID(bonusX);
             }
 
-            if ((srSteamID == "null" || srPlayerName == "null" || srTime == "null") && topSteamID != "x") return false;
+            if ((srSteamID == "null" || srPlayerName == "null" || srTime == "null") && topSteam.ID != "x") return false;
 
             string fileName = $"{(topSteamID == "x" ? $"{srSteamID}" : $"{topSteamID}")}_replay.json";
             string playerReplaysPath;
