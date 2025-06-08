@@ -146,10 +146,11 @@ namespace SharpTimer
                                     beam.Render = Color.FromArgb(255, 255, 255, 0); // Yellow (Alpha, R, G, B)
 
                                     beam.Width = 3.0f; // Placeholder - User needs to set desired value
-                                    Utilities.SetStateChanged(beam, "CBeam", "m_flWidth"); // Using "CBeam"
+                                    // Utilities.SetStateChanged(beam, "CBeam", "m_flWidth"); // REMOVED
 
-                                    beam.SpriteName = "materials/sprites/laserbeam.vmat"; // Placeholder - User needs to provide a valid .vmat path
-                                    Utilities.SetStateChanged(beam, "CBeam", "m_iszSpriteName"); // Using "CBeam"
+                                    // SpriteName and SetModel are no longer explicitly set to null.
+                                    // Relying on CEnvBeam's default sprite behavior.
+                                    // Utilities.SetStateChanged(beam, "CBeam", "m_iszSpriteName"); // REMOVED
 
                                     beam.DispatchSpawn();
 
