@@ -29,6 +29,13 @@ namespace SharpTimer
         private float currentMapRecordTimeSeconds = -1.0f; // New variable for server record time
         private bool serverRecordTimeInitialized = false;
         public required IRunCommand RunCommand;
+
+        public static float replayBotTrailWidth = 3.0f;
+        public static int replayBotTrailColorR = 255;
+        public static int replayBotTrailColorG = 255;
+        public static int replayBotTrailColorB = 0;
+        public static bool replayBotTrailCustomColorEnabled = false;
+
         private static readonly MemoryFunctionVoid<CCSPlayerPawn, CSPlayerState> StateTransition = new(GameData.GetSignature("StateTransition"));
         private readonly INetworkServerService networkServerService = new();
         private int movementServices;
