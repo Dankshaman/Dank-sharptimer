@@ -143,9 +143,16 @@ namespace SharpTimer
                                     Utilities.SetStateChanged(beam, "CBeam", "m_vecEndPos"); // Use "CBeam" as per original working version for EndPos
 
                                     // Visual Properties
-                                    beam.Render = Color.FromArgb(255, 255, 255, 0); // Yellow (Alpha, R, G, B)
+                                    if (SharpTimer.replayBotTrailCustomColorEnabled)
+                                    {
+                                        beam.Render = Color.FromArgb(255, SharpTimer.replayBotTrailColorR, SharpTimer.replayBotTrailColorG, SharpTimer.replayBotTrailColorB);
+                                    }
+                                    else
+                                    {
+                                        beam.Render = Color.FromArgb(255, 255, 255, 0); // Default yellow
+                                    }
 
-                                    beam.Width = 3.0f; // Placeholder - User needs to set desired value
+                                    beam.Width = SharpTimer.replayBotTrailWidth;
                                     // Utilities.SetStateChanged(beam, "CBeam", "m_flWidth"); // REMOVED
 
                                     beam.DispatchSpawn();
