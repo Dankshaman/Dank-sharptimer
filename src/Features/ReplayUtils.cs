@@ -19,7 +19,7 @@ using CounterStrikeSharp.API.Modules.Utils; // For Vector
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using System.Text.Json;
 using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
-// Removed: using System.Drawing; // For Color (no longer needed for CParticleSystem)
+using System.Drawing; // For Color
 
 namespace SharpTimer
 {
@@ -115,50 +115,50 @@ namespace SharpTimer
 
                             if (currentPos != null && previousPos != null && currentPos != previousPos) // Ensure positions are valid and distinct
                             {
-                                // (previousPos and currentPos are assumed to be available as Vector objects)
-                                // We'll spawn the particle effect at the currentPos of the replay frame.
-
                                 try
                                 {
-                                    var particleSystem = Utilities.CreateEntityByName<CParticleSystem>("info_particle_system");
-                                    if (particleSystem == null || !particleSystem.IsValid)
+                                    var beam = Utilities.CreateEntityByName<CEnvBeam>("env_beam");
+                                    if (beam == null || !beam.IsValid)
                                     {
-                                        SharpTimerError($"Failed to create CParticleSystem entity for replay trail.");
-                                        return; // Exit this attempt if creation failed
+                                        SharpTimerError($"Failed to create CEnvBeam entity for replay trail.");
+                                        return;
                                     }
 
-                                    // User will need to change this path to their desired .vpcf file
-                                    particleSystem.EffectName = "particles/ambient_fx/ambient_sparks_glow.vpcf"; // Default from Trails example
+                                    // Start Position
+                                    beam.Teleport(previousPos, new QAngle(0, 0, 0), new Vector(0, 0, 0));
 
-                                    // Teleport the particle system to the current replay position before starting it.
-                                    // This makes the particle effect emit from this point.
-                                    particleSystem.Teleport(currentPos, new QAngle(0, 0, 0), new Vector(0, 0, 0));
-                                    
-                                    particleSystem.DispatchSpawn();
-                                    particleSystem.AcceptInput("Start"); // Start emitting particles
-
-                                    // Add the particle system to the list for tracking
-                                    playerReplays[player.Slot].replayParticleSystems.Add(particleSystem);
-
-                                    // Lifetime management for this particle burst
-                                    float particleLifetime = 2.0f; // Default lifetime in seconds, user might want to configure this later
-                                    AddTimer(particleLifetime, () =>
+                                    // End Position (component-wise assignment)
+                                    if (beam.EndPos != null)
                                     {
-                                        if (particleSystem != null && particleSystem.IsValid)
-                                        {
-                                            // Optional: particleSystem.AcceptInput("Stop"); // May not be needed if Remove is sufficient
-                                            particleSystem.Remove();
-                                        }
-                                    });
-                                    
-                                    // Note: The Trails example also had particle.AcceptInput("FollowEntity", ...);
-                                    // For replays, simply spawning a short-lived effect at each point might be visually better
-                                    // than trying to make one system follow the ghost, unless the ghost is a proper entity to follow.
-                                    // The current approach creates a burst at each point.
+                                        beam.EndPos.X = currentPos.X;
+                                        beam.EndPos.Y = currentPos.Y;
+                                        beam.EndPos.Z = currentPos.Z;
+                                    }
+                                    else
+                                    {
+                                        SharpTimerError($"beam.EndPos was null for CEnvBeam entity. Cannot set components for trail.");
+                                        if (beam.IsValid) beam.Remove(); // Clean up partially formed beam
+                                        return;
+                                    }
+                                    Utilities.SetStateChanged(beam, "CBeam", "m_vecEndPos"); // Use "CBeam" as per original working version for EndPos
+
+                                    // Visual Properties
+                                    beam.Render = Color.FromArgb(255, 255, 255, 0); // Yellow (Alpha, R, G, B)
+
+                                    beam.Width = 3.0f; // Placeholder - User needs to set desired value
+                                    Utilities.SetStateChanged(beam, "CBeam", "m_flWidth"); // Using "CBeam"
+
+                                    beam.SpriteName = "materials/sprites/laserbeam.vmat"; // Placeholder - User needs to provide a valid .vmat path
+                                    Utilities.SetStateChanged(beam, "CBeam", "m_iszSpriteName"); // Using "CBeam"
+
+                                    beam.DispatchSpawn();
+
+                                    // Add to list for persistent trails
+                                    playerReplays[player.Slot].replayBeams.Add(beam);
                                 }
                                 catch (Exception ex)
                                 {
-                                    SharpTimerError($"Error creating CParticleSystem trail in ReplayPlayback: {ex.Message}");
+                                    SharpTimerError($"Error creating CEnvBeam trail in ReplayPlayback: {ex.Message}");
                                 }
                             }
                         }
@@ -181,20 +181,20 @@ namespace SharpTimer
                 {
                     SharpTimerDebug($"Replay for player {player.PlayerName} (Slot: {player.Slot}) finished. CurrentFrame: {playerReplays[player.Slot].CurrentPlaybackFrame}, TotalFrames: {totalFrames}. Cleaning visuals.");
                     ClearReplayVisuals(player.Slot); // Updated call
-                    
+
                     // Stop further replay actions for this player
-                    playerTimers[player.Slot].IsReplaying = false; 
+                    playerTimers[player.Slot].IsReplaying = false;
                     // Potentially call OnRecordingStop(player); if that contains other necessary "stop replay" logic
                     // For now, focus on IsReplaying = false and beam clear.
                     // Resetting CurrentPlaybackFrame to 0 might be done if a "view last replay again" feature exists,
                     // but for a single playthrough, it's done.
                     playerReplays[player.Slot].CurrentPlaybackFrame = 0; // Reset for any future replay.
-                    
+
                     return; // Stop further execution in this tick if replay ended.
                 }
 
                 // This check seems problematic if totalFrames can be low for valid replays.
-                // if (totalFrames <= 128) 
+                // if (totalFrames <= 128)
                 // {
                 //     OnRecordingStop(player); // This also sets IsRecordingReplay = false.
                 // }
@@ -215,10 +215,10 @@ namespace SharpTimer
             try
             {
                 // Call the centralized cleanup function for the slot
-                ClearReplayVisuals(player.Slot); 
+                ClearReplayVisuals(player.Slot);
 
                 // Original lines from OnRecordingStart should follow:
-                playerReplays.Remove(player.Slot); 
+                playerReplays.Remove(player.Slot);
                 playerReplays[player.Slot] = new PlayerReplays // This creates a new PlayerReplays instance with an empty replayBeams list.
                 {
                     BonusX = bonusX,
@@ -550,26 +550,11 @@ namespace SharpTimer
         {
             if (playerReplays.TryGetValue(playerSlot, out PlayerReplays? replayData) && replayData != null)
             {
-                // Cleanup Particle Systems
-                if (replayData.replayParticleSystems != null && replayData.replayParticleSystems.Count > 0)
-                {
-                    SharpTimerDebug($"Clearing {replayData.replayParticleSystems.Count} particle systems for slot {playerSlot}.");
-                    foreach (var particleSystem in replayData.replayParticleSystems)
-                    {
-                        if (particleSystem != null && particleSystem.IsValid)
-                        {
-                            // particleSystem.AcceptInput("Stop"); // Optional: attempt to stop emission before removal
-                            particleSystem.Remove();
-                        }
-                    }
-                    replayData.replayParticleSystems.Clear();
-                }
-
-                // Cleanup Beams (if replayBeams list still exists and is managed)
+                // Cleanup Beams
                 if (replayData.replayBeams != null && replayData.replayBeams.Count > 0)
                 {
-                    SharpTimerDebug($"Clearing {replayData.replayBeams.Count} beams for slot {playerSlot} (if any).");
-                    foreach (var beam in replayData.replayBeams) // Assuming replayBeams is List<CEnvBeam>
+                    SharpTimerDebug($"Clearing {replayData.replayBeams.Count} CEnvBeam trails for slot {playerSlot}.");
+                    foreach (var beam in replayData.replayBeams)
                     {
                         if (beam != null && beam.IsValid)
                         {

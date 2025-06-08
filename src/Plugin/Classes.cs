@@ -300,8 +300,8 @@ namespace SharpTimer
         public int BonusX { get; set; }
         public int Style { get; set; }
         public List<ReplayFrames> replayFrames { get; set; } = [];
-        public List<CounterStrikeSharp.API.Core.CEnvBeam> replayBeams { get; set; } = new List<CounterStrikeSharp.API.Core.CEnvBeam>(); // Keep this if it's still used for other features, or remove if fully replaced
-        public List<CounterStrikeSharp.API.Core.CParticleSystem> replayParticleSystems { get; set; } = new List<CounterStrikeSharp.API.Core.CParticleSystem>();
+        public List<CounterStrikeSharp.API.Core.CEnvBeam> replayBeams { get; set; } = new List<CounterStrikeSharp.API.Core.CEnvBeam>();
+        // Removed: public List<CounterStrikeSharp.API.Core.CParticleSystem> replayParticleSystems { get; set; } = new List<CounterStrikeSharp.API.Core.CParticleSystem>();
         public class ReplayFrames
         {
             public ReplayVector? Position { get; set; }
