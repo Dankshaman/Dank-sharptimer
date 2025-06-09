@@ -185,22 +185,28 @@ namespace SharpTimer
                             }
                             beamColorHex = (Utils != null) ? Utils.ColorToHexString(finalBeamColor) : "#00FF00";
 
-                            CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
-                            if (beam != null) {
-                                try { beam.Render = System.Drawing.ColorTranslator.FromHtml(beamColorHex); }
-                                catch { beam.Render = System.Drawing.Color.LimeGreen; } // Fallback color
-                                beam.Width = SharpTimer.ReplayBeamWidth;
+                            var prevFixVecActual = replayBotPreviousPosition.Value;
+                            var prevPosCssVec = new CounterStrikeSharp.API.Modules.Utils.Vector(prevFixVecActual.X, prevFixVecActual.Y, prevFixVecActual.Z);
+                            float distanceToPrevious = (currentBotOriginCssVec - prevPosCssVec).Length();
 
-                                var prevFixVecActual = replayBotPreviousPosition.Value;
-                                var prevPosCssVec = new CounterStrikeSharp.API.Modules.Utils.Vector(prevFixVecActual.X, prevFixVecActual.Y, prevFixVecActual.Z);
+                            const float MAX_BEAM_DISTANCE = 1000.0f; // Threshold for drawing a beam
 
-                                beam.Teleport(prevPosCssVec, new CounterStrikeSharp.API.Modules.Utils.QAngle(0,0,0), new CounterStrikeSharp.API.Modules.Utils.Vector(0,0,0));
-                                beam.EndPos.X = currentBotOriginCssVec.X; // Use CssVec for EndPos components
-                                beam.EndPos.Y = currentBotOriginCssVec.Y;
-                                beam.EndPos.Z = currentBotOriginCssVec.Z;
-                                beam.DispatchSpawn();
-                                BeamSegment newSegment = new BeamSegment(beam, Server.TickCount, prevFixVecActual, currentBotOriginFixVec); // Use FixVec for segment storage
-                                replayBotBeamSegments.Add(newSegment);
+                            if (distanceToPrevious <= MAX_BEAM_DISTANCE)
+                            {
+                                CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
+                                if (beam != null) {
+                                    try { beam.Render = System.Drawing.ColorTranslator.FromHtml(beamColorHex); }
+                                    catch { beam.Render = System.Drawing.Color.LimeGreen; } // Fallback color
+                                    beam.Width = SharpTimer.ReplayBeamWidth;
+
+                                    beam.Teleport(prevPosCssVec, new CounterStrikeSharp.API.Modules.Utils.QAngle(0,0,0), new CounterStrikeSharp.API.Modules.Utils.Vector(0,0,0));
+                                    beam.EndPos.X = currentBotOriginCssVec.X; // Use CssVec for EndPos components
+                                    beam.EndPos.Y = currentBotOriginCssVec.Y;
+                                    beam.EndPos.Z = currentBotOriginCssVec.Z;
+                                    beam.DispatchSpawn();
+                                    BeamSegment newSegment = new BeamSegment(beam, Server.TickCount, prevFixVecActual, currentBotOriginFixVec); // Use FixVec for segment storage
+                                    replayBotBeamSegments.Add(newSegment);
+                                }
                             }
                         }
                         // Update previous position for the next frame, unconditionally for the replay bot.
@@ -278,11 +284,7 @@ namespace SharpTimer
                     int totalFramesInternal = replayDataCheck.replayFrames.Count;
                     if (replayDataCheck.CurrentPlaybackFrame >= totalFramesInternal -1 )
                     {
-                        if (player == replayBotController)
-                        {
-                            ClearReplayBotTrail();
-                            if (Utils != null) Utils.LogDebug($"End of replay for bot {player.PlayerName}. Trail cleared.");
-                        }
+                        // Removed ClearReplayBotTrail() call here
                     }
                 }
                 playerReplays[player.Slot].CurrentPlaybackFrame++;
