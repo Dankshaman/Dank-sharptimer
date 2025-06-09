@@ -575,6 +575,7 @@ namespace SharpTimer
 
         public async Task<bool> CheckSRReplay(string topSteamID = "x", int bonusX = 0, int style = 0)
         {
+            if (Utils != null) Utils.LogDebug($"[CheckSRReplay] Called. Map: {currentMapName}, BonusX: {bonusX}, Style: {style}, TopSteamID: {topSteamID}");
             var (srSteamID, srPlayerName, srTime) = ("null", "null", "null");
 
             if (enableDb)
@@ -586,16 +587,26 @@ namespace SharpTimer
                 (srSteamID, srPlayerName, srTime) = await GetMapRecordSteamID(bonusX);
             }
 
-            if ((srSteamID == "null" || srPlayerName == "null" || srTime == "null") && topSteamID != "x") return false;
+            if (Utils != null) Utils.LogDebug($"[CheckSRReplay] Fetched SR info: SteamID={srSteamID}, Name={srPlayerName}, Time={srTime}");
+
+            if ((srSteamID == "null" || srPlayerName == "null" || srTime == "null") && topSteamID != "x")
+            {
+                if (Utils != null) Utils.LogDebug($"[CheckSRReplay] SR data is null and topSteamID not 'x'. Returning false early.");
+                return false;
+            }
 
             string fileName = $"{(topSteamID == "x" ? $"{srSteamID}" : $"{topSteamID}")}_replay.json";
             string playerReplaysPath;
             if (style != 0) playerReplaysPath = Path.Join(gameDir, "csgo", "cfg", "SharpTimer", "PlayerReplayData", (bonusX == 0 ? currentMapName : $"{currentMapName}_bonus{bonusX}"), GetNamedStyle(style), fileName);
             else playerReplaysPath = Path.Join(gameDir, "csgo", "cfg", "SharpTimer", "PlayerReplayData", (bonusX == 0 ? currentMapName : $"{currentMapName}_bonus{bonusX}"), fileName);
 
+            if (Utils != null) Utils.LogDebug($"[CheckSRReplay] Constructed replay file path: {playerReplaysPath}");
+
             try
             {
-                if (File.Exists(playerReplaysPath))
+                bool fileExists = File.Exists(playerReplaysPath);
+                if (Utils != null) Utils.LogDebug($"[CheckSRReplay] File.Exists({playerReplaysPath}) result: {fileExists}");
+                if (fileExists)
                 {
                     var jsonString = await File.ReadAllTextAsync(playerReplaysPath);
                     if (!jsonString.Contains("PositionString"))
@@ -604,23 +615,30 @@ namespace SharpTimer
 
                         if (indexedReplayFrames != null)
                         {
+                            if (Utils != null) Utils.LogDebug($"[CheckSRReplay] JSON Deserialization successful. Frame count: {indexedReplayFrames.Count}. Returning true.");
                             return true;
                         }
-                        return false;
+                        else
+                        {
+                            if (Utils != null) Utils.LogDebug($"[CheckSRReplay] JSON Deserialization failed (result is null). Returning false.");
+                            return false;
+                        }
                     }
                     else
                     {
+                        if (Utils != null) Utils.LogDebug($"[CheckSRReplay] Unsupported replay format (contains 'PositionString'). Returning false.");
                         return false;
                     }
                 }
                 else
                 {
+                    // Log for non-existent file is implicitly covered by fileExists log
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error during deserialization: {ex.Message}");
+                if (Utils != null) Utils.LogError($"[CheckSRReplay] Exception during deserialization or file read: {ex.Message}. Path: {playerReplaysPath}. Returning false.");
                 return false;
             }
         }
