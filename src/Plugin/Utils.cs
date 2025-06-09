@@ -1388,6 +1388,40 @@ namespace SharpTimer
                 }
 
                 SharpTimerConPrint($"useTriggers: {useTriggers}!");
+
+                // Fetch and update currentMapRecordTimeSeconds for the main map (bonusX=0, style=0)
+                SharpTimerDebug($"LoadMapData for {mapName} started.");
+                _ = Task.Run(async () =>
+                {
+                    SharpTimerDebug($"Background task in LoadMapData for {mapName} started.");
+                    if (enableDb)
+                    {
+                        SharpTimerDebug($"Attempting to fetch SR for {mapName}...");
+                        PlayerRecord? serverRecord = await FetchTopPlayerRecordAsync(mapName, 0, 0);
+                        if (serverRecord != null && serverRecord.TimerTicks > 0)
+                        {
+                            SharpTimerDebug($"SR found for {mapName}: Ticks = {serverRecord.TimerTicks}. Calculating time...");
+                            float tickRate = 64.0f;
+                            if(CounterStrikeSharp.API.Server.TickInterval > 0)
+                            {
+                                tickRate = 1.0f / CounterStrikeSharp.API.Server.TickInterval;
+                            }
+                            currentMapRecordTimeSeconds = (float)serverRecord.TimerTicks / tickRate;
+                            SharpTimerDebug($"SUCCESS: currentMapRecordTimeSeconds updated to: {currentMapRecordTimeSeconds}s for map {mapName}. (Task Ending)");
+                        }
+                        else
+                        {
+                            currentMapRecordTimeSeconds = -1.0f;
+                            SharpTimerDebug($"No SR found or Ticks=0 for {mapName}. currentMapRecordTimeSeconds set to -1.0f. (Task Ending)");
+                        }
+                    }
+                    else
+                    {
+                        currentMapRecordTimeSeconds = -1.0f;
+                        SharpTimerDebug($"DB not enabled. currentMapRecordTimeSeconds set to -1.0f for {mapName}. (Task Ending)");
+                    }
+                });
+                SharpTimerDebug($"LoadMapData for {mapName} finished (background task initiated).");
             }
             catch (Exception ex)
             {

@@ -24,7 +24,7 @@ namespace SharpTimer
 {
     public partial class SharpTimer
     {
-        
+
         [ConsoleCommand("sharptimer_hostname", "Default Server Hostname.")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void SharpTimerServerHostname(CCSPlayerController? player, CommandInfo command)
@@ -552,7 +552,7 @@ namespace SharpTimer
 
             enableReplays = bool.TryParse(args, out bool enableReplaysValue) ? enableReplaysValue : args != "0" && enableReplays;
         }
-        
+
         [ConsoleCommand("sharptimer_replay_only_sr", "Only saves SR replay if true. Default value: false")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void SharpTimerReplaySRConvar(CCSPlayerController? player, CommandInfo command)
@@ -886,7 +886,7 @@ namespace SharpTimer
 
             useCheckpointVerification = bool.TryParse(args, out bool value) ? value : args != "0" && useCheckpointVerification;
         }
-        
+
         [ConsoleCommand("sharptimer_apply_infinite_ammo", "Enable or disable infinite ammo. Default value: true")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void SharpTimerInfiniteAmmoConvar(CCSPlayerController? player, CommandInfo command)
@@ -1499,7 +1499,7 @@ namespace SharpTimer
 
             srSound = $"{args}";
         }
-        
+
         [ConsoleCommand("sharptimer_sound_str", "Defines STR Sound. Default value: sounds/ui/panorama/round_report_round_won_01.vsnd")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void SharpTimerSoundStageRecord(CCSPlayerController? player, CommandInfo command)
@@ -1542,7 +1542,7 @@ namespace SharpTimer
         {
             string args = command.ArgString;
 
-            if(!isLinux)
+            if (!isLinux)
             {
                 enableStyles = false;
                 return;
@@ -1559,7 +1559,7 @@ namespace SharpTimer
 
             enableStylePoints = bool.TryParse(args, out bool enableStylePointsValue) ? enableStylePointsValue : args != "0" && enableStylePoints;
         }
-        
+
         [ConsoleCommand("sharptimer_style_multiplier_parachute", "Point modifier for parachute. Default value: 0.8")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void SharpTimerParachuteMultiplierConvar(CCSPlayerController? player, CommandInfo command)
@@ -1576,7 +1576,7 @@ namespace SharpTimer
                 SharpTimerConPrint("Invalid parachute point modifier. Please provide a positive integer.");
             }
         }
-        
+
         [ConsoleCommand("sharptimer_style_multiplier_tas", "Point modifier for TAS. Default value: 0.0")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void SharpTimerTASMultiplierConvar(CCSPlayerController? player, CommandInfo command)
@@ -1809,6 +1809,153 @@ namespace SharpTimer
             }
 
             remoteSurfDataSource = $"{args}";
+        }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_width", "Sets the width of the replay bot's trail.")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailWidthConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (float.TryParse(args, NumberStyles.Any, CultureInfo.InvariantCulture, out float width) && width > 0)
+            {
+                SharpTimer.replayBotTrailWidth = width;
+                SharpTimerConPrint($"Replay bot trail width set to {width}.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid width value. Please provide a positive float.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_color_r", "Sets the Red component of the replay bot's trail color (0-255).")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailColorRConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (int.TryParse(args, out int colorValue) && colorValue >= 0 && colorValue <= 255)
+            {
+                SharpTimer.replayBotTrailColorR = colorValue;
+                SharpTimerConPrint($"Replay bot trail Red component set to {colorValue}.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid Red component value. Please provide an integer between 0 and 255.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_color_g", "Sets the Green component of the replay bot's trail color (0-255).")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailColorGConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (int.TryParse(args, out int colorValue) && colorValue >= 0 && colorValue <= 255)
+            {
+                SharpTimer.replayBotTrailColorG = colorValue;
+                SharpTimerConPrint($"Replay bot trail Green component set to {colorValue}.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid Green component value. Please provide an integer between 0 and 255.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_color_b", "Sets the Blue component of the replay bot's trail color (0-255).")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailColorBConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (int.TryParse(args, out int colorValue) && colorValue >= 0 && colorValue <= 255)
+            {
+                SharpTimer.replayBotTrailColorB = colorValue;
+                SharpTimerConPrint($"Replay bot trail Blue component set to {colorValue}.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid Blue component value. Please provide an integer between 0 and 255.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_bot_trail_custom_color_enabled", "Enables/disables custom color for the replay bot's trail.")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBotTrailCustomColorEnabledConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim().ToLower();
+            if (args == "true" || args == "1")
+            {
+                SharpTimer.replayBotTrailCustomColorEnabled = true;
+                SharpTimerConPrint("Custom color for replay bot trail enabled.");
+            }
+            else if (args == "false" || args == "0")
+            {
+                SharpTimer.replayBotTrailCustomColorEnabled = false;
+                SharpTimerConPrint("Custom color for replay bot trail disabled.");
+            }
+            else
+            {
+                SharpTimerConPrint("Invalid boolean value. Please provide 'true', 'false', '1', or '0'.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_beam_color_dynamic_enabled", "Enables/disables dynamic color for the replay bot's trail beam based on velocity. Default: false")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBeamDynamicEnabledConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim().ToLower();
+            if (bool.TryParse(args, out bool val))
+            {
+                SharpTimer.replayBeamColorDynamicEnabled = val;
+                SharpTimerConPrint($"sharptimer_replay_beam_color_dynamic_enabled set to {val}.");
+            }
+            else if (args == "1")
+            {
+                SharpTimer.replayBeamColorDynamicEnabled = true;
+                SharpTimerConPrint($"sharptimer_replay_beam_color_dynamic_enabled set to true.");
+            }
+            else if (args == "0")
+            {
+                SharpTimer.replayBeamColorDynamicEnabled = false;
+                SharpTimerConPrint($"sharptimer_replay_beam_color_dynamic_enabled set to false.");
+            }
+            else
+            {
+                SharpTimerConPrint($"Invalid value for sharptimer_replay_beam_color_dynamic_enabled: '{args}'. Please use 'true', 'false', '1', or '0'.");
+            }
+        }
+
+        [ConsoleCommand("sharptimer_replay_beam_color_velocity_thresholds", "Comma-separated velocity thresholds for replay beam color changes. Default: \"500,1000,1500,2000,2500,3000,3500,4000\"")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBeamVelocityThresholdsConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (string.IsNullOrEmpty(args))
+            {
+                SharpTimer.replayBeamColorVelocityThresholdsRaw = "500,1000,1500,2000,2500,3000,3500,4000"; // Default value
+                SharpTimerConPrint($"sharptimer_replay_beam_color_velocity_thresholds was empty, reset to default: \"{SharpTimer.replayBeamColorVelocityThresholdsRaw}\".");
+            }
+            else
+            {
+                SharpTimer.replayBeamColorVelocityThresholdsRaw = args;
+                SharpTimerConPrint($"sharptimer_replay_beam_color_velocity_thresholds set to: \"{args}\".");
+            }
+            // Future: Consider calling ParseReplayBeamValues here if live update without config reload is desired.
+        }
+
+        [ConsoleCommand("sharptimer_replay_beam_colors", "Comma-separated colors (names or #hex) for replay beam. Default: \"lime,greenyellow,yellow,gold,orange,darkorange,red,crimson\"")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBeamColorsConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (string.IsNullOrEmpty(args))
+            {
+                SharpTimer.replayBeamColorsRaw = "lime,greenyellow,yellow,gold,orange,darkorange,red,crimson"; // Default value
+                SharpTimerConPrint($"sharptimer_replay_beam_colors was empty, reset to default: \"{SharpTimer.replayBeamColorsRaw}\".");
+            }
+            else
+            {
+                SharpTimer.replayBeamColorsRaw = args;
+                SharpTimerConPrint($"sharptimer_replay_beam_colors set to: \"{args}\".");
+            }
+            // Future: Consider calling ParseReplayBeamValues here if live update without config reload is desired.
         }
     }
 }

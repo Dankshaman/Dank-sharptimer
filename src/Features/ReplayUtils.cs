@@ -14,11 +14,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 using CounterStrikeSharp.API;
-using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Modules.Utils;
+using CounterStrikeSharp.API.Core; // For CBeam, CBaseEntity, etc.
+using CounterStrikeSharp.API.Modules.Utils; // For Vector
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using System.Text.Json;
 using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
+using System.Drawing; // For Color
 
 namespace SharpTimer
 {
@@ -67,7 +68,7 @@ namespace SharpTimer
 
                 if (playerTimers.TryGetValue(player.Slot, out PlayerTimerInfo? value))
                 {
-                    
+
                     var replayFrame = playerReplays[player.Slot].replayFrames[plackbackTick];
 
                     if (((PlayerFlags)replayFrame.Flags & PlayerFlags.FL_ONGROUND) != 0)
@@ -101,6 +102,127 @@ namespace SharpTimer
                     {
                         player.PrintToCenter(replayButtons);
                     }
+
+                    if (plackbackTick > 0) // Ensure there's a previous frame and process every 10th frame
+                    {
+                        var currentFrameData = playerReplays[player.Slot].replayFrames[plackbackTick];
+                        var previousFrameData = playerReplays[player.Slot].replayFrames[plackbackTick - 2];
+
+                        if (currentFrameData != null && currentFrameData.Position != null && previousFrameData != null && previousFrameData.Position != null && currentFrameData.Speed != null)
+                        {
+                            Vector currentPos = ReplayVector.ToVector(currentFrameData.Position);
+                            Vector previousPos = ReplayVector.ToVector(previousFrameData.Position);
+                            Vector currentSpeedVec = ReplayVector.ToVector(currentFrameData.Speed);
+
+                            if (currentPos != null && previousPos != null && currentPos != previousPos) // Ensure positions are valid and distinct
+                            {
+                                try
+                                {
+                                    var beam = Utilities.CreateEntityByName<CEnvBeam>("env_beam");
+                                    if (beam == null || !beam.IsValid)
+                                    {
+                                        SharpTimerError($"Failed to create CEnvBeam entity for replay trail.");
+                                        return;
+                                    }
+
+                                    // Start Position
+                                    beam.Teleport(previousPos, new QAngle(0, 0, 0), new Vector(0, 0, 0));
+
+                                    // End Position (component-wise assignment)
+                                    if (beam.EndPos != null)
+                                    {
+                                        beam.EndPos.X = currentPos.X;
+                                        beam.EndPos.Y = currentPos.Y;
+                                        beam.EndPos.Z = currentPos.Z;
+                                    }
+                                    else
+                                    {
+                                        SharpTimerError($"beam.EndPos was null for CEnvBeam entity. Cannot set components for trail.");
+                                        if (beam.IsValid) beam.Remove(); // Clean up partially formed beam
+                                        return;
+                                    }
+                                    Utilities.SetStateChanged(beam, "CBeam", "m_vecEndPos"); // Use "CBeam" as per original working version for EndPos
+
+                                    // Visual Properties - Dynamic Beam Color Logic
+                                    if (SharpTimer.replayBeamColorDynamicEnabled && SharpTimer.ReplayBeamVelocityThresholds.Count > 0 && SharpTimer.ReplayBeamColors.Count == SharpTimer.ReplayBeamVelocityThresholds.Count)
+                                    {
+                                        float speed = SharpTimer.use2DSpeed ? new Vector(currentSpeedVec.X, currentSpeedVec.Y, 0).Length() : currentSpeedVec.Length();
+                                        Color beamColor = SharpTimer.ReplayBeamColors[0]; // Default to the first color
+
+                                        for (int i = 0; i < SharpTimer.ReplayBeamVelocityThresholds.Count; i++)
+                                        {
+                                            if (speed >= SharpTimer.ReplayBeamVelocityThresholds[i])
+                                            {
+                                                beamColor = SharpTimer.ReplayBeamColors[i];
+                                            }
+                                            else
+                                            {
+                                                // If speed is less than the current threshold, use the color from the previous threshold (or the first if this is the first threshold)
+                                                // However, the loop structure ensures `beamColor` is already set to the highest met threshold's color.
+                                                // So, if speed is less, the current beamColor (from a lower or initial threshold) is correct.
+                                                // We can break if we want the first matching threshold from low to high, but current logic implies highest matched.
+                                                // For "highest met threshold", we simply continue and overwrite.
+                                                // For "first met threshold" (color for 500-999, then 1000-1499 etc):
+                                                // beamColor = SharpTimer.ReplayBeamColors[i]; break; // if we want this behavior
+                                            }
+                                        }
+                                        beam.Render = beamColor;
+                                    }
+                                    else
+                                    {
+                                        // Fallback to existing logic if dynamic is disabled or misconfigured
+                                        if (SharpTimer.replayBotTrailCustomColorEnabled)
+                                        {
+                                            beam.Render = Color.FromArgb(255, SharpTimer.replayBotTrailColorR, SharpTimer.replayBotTrailColorG, SharpTimer.replayBotTrailColorB);
+                                        }
+                                        else
+                                        {
+                                            beam.Render = Color.FromArgb(255, 255, 255, 0); // Default yellow
+                                        }
+                                    }
+
+                                    beam.Width = SharpTimer.replayBotTrailWidth;
+                                    // Utilities.SetStateChanged(beam, "CBeam", "m_flWidth"); // REMOVED
+
+                                    beam.DispatchSpawn();
+
+                                    // Add to list for persistent trails
+                                    playerReplays[player.Slot].replayBeams.Add(beam);
+
+                                    // Determine lifetime for this beam segment
+                                    float beamSegmentLifetime = 2.0f;
+                                    string lifetimeSource = "default"; // Renamed from lifetimeSourceInfo for consistency
+                                    if (currentMapRecordTimeSeconds > 0.0f)
+                                    {
+                                        beamSegmentLifetime = currentMapRecordTimeSeconds; // REVERTED
+                                        lifetimeSource = $"SR ({currentMapRecordTimeSeconds}s)";
+                                    }
+                                    SharpTimerDebug($"Beam lifetime for {player.PlayerName}: {beamSegmentLifetime}s (Source: {lifetimeSource}). currentMapRecordTimeSeconds is {currentMapRecordTimeSeconds}s.");
+
+                                    // Schedule removal of the beam entity AND its reference from the list
+                                    var playerSlotForTimer = player.Slot;
+                                    var beamToRemove = beam;
+
+                                    AddTimer(beamSegmentLifetime, () =>
+                                    {
+                                        if (beamToRemove != null && beamToRemove.IsValid)
+                                        {
+                                            beamToRemove.Remove();
+                                        }
+
+                                        if (playerReplays.TryGetValue(playerSlotForTimer, out PlayerReplays? replayData) && replayData != null && replayData.replayBeams != null)
+                                        {
+                                            replayData.replayBeams.Remove(beamToRemove);
+                                        }
+                                    });
+                                }
+                                catch (Exception ex)
+                                {
+                                    SharpTimerError($"Error creating CEnvBeam trail in ReplayPlayback: {ex.Message}");
+                                }
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -111,26 +233,32 @@ namespace SharpTimer
 
         private void ReplayPlay(CCSPlayerController player)
         {
+            if (playerTimers.TryGetValue(player.Slot, out var timerInfo) && timerInfo.IsReplaying) // Check if it's a replaying bot
+            {
+                SharpTimerDebug($"ReplayPlay called for {player.PlayerName}. CurrentPlaybackFrame: {playerReplays[player.Slot].CurrentPlaybackFrame}. currentMapRecordTimeSeconds: {currentMapRecordTimeSeconds}s");
+            }
             try
             {
                 int totalFrames = playerReplays[player.Slot].replayFrames.Count;
 
-                if (totalFrames <= 128)
+                if (totalFrames <= 128) // User's version includes this check
                 {
-                    OnRecordingStop(player);
+                    OnRecordingStop(player); // This sets IsRecordingReplay = false and MoveType.
                 }
 
                 if (playerReplays[player.Slot].CurrentPlaybackFrame < 0 || playerReplays[player.Slot].CurrentPlaybackFrame >= totalFrames)
                 {
+                    // User's version does not ClearReplayVisuals here. If looping, this means trails will accumulate.
                     playerReplays[player.Slot].CurrentPlaybackFrame = 0;
                     Action<CCSPlayerController?, float, bool> adjustVelocity = use2DSpeed ? AdjustPlayerVelocity2D : AdjustPlayerVelocity;
-                    adjustVelocity(player, 0, false);
+                    adjustVelocity(player, 0, false); // Resets velocity.
+                    // No 'return;' here and IsReplaying is not set to false, so it will loop immediately.
                 }
 
                 if (jumpStatsEnabled) InvalidateJS(player.Slot);
-                ReplayPlayback(player, playerReplays[player.Slot].CurrentPlaybackFrame);
+                ReplayPlayback(player, playerReplays[player.Slot].CurrentPlaybackFrame); // Play current frame & draw visuals
 
-                playerReplays[player.Slot].CurrentPlaybackFrame++;
+                playerReplays[player.Slot].CurrentPlaybackFrame++; // Advance to next frame
             }
             catch (Exception ex)
             {
@@ -142,8 +270,12 @@ namespace SharpTimer
         {
             try
             {
+                // Call the centralized cleanup function for the slot
+                ClearReplayVisuals(player.Slot);
+
+                // Original lines from OnRecordingStart should follow:
                 playerReplays.Remove(player.Slot);
-                playerReplays[player.Slot] = new PlayerReplays
+                playerReplays[player.Slot] = new PlayerReplays // This creates a new PlayerReplays instance with an empty replayBeams list.
                 {
                     BonusX = bonusX,
                     Style = style
@@ -398,18 +530,22 @@ namespace SharpTimer
             {
                 var botSlot = bot.Slot;
                 var botName = bot.PlayerName;
-                
-                if(bot.IsHLTV)
+
+                if (bot.IsHLTV)
                     return;
 
+                SharpTimerDebug($"OnReplayBotConnect for bot {bot.PlayerName} (Slot {botSlot}). Scheduling ReplayHandler start.");
                 AddTimer(3.0f, () =>
                 {
+                    SharpTimerDebug($"OnReplayBotConnect: 3s timer expired for bot {bot.PlayerName}. Initializing bot for replay.");
                     OnPlayerConnect(bot, true);
                     connectedReplayBots[botSlot] = new CCSPlayerController(bot.Handle);
                     ChangePlayerName(bot, replayBotName);
                     playerTimers[botSlot].IsTimerBlocked = true;
+
+                    SharpTimerDebug($"OnReplayBotConnect: About to start ReplayHandler task for bot {bot.PlayerName}. currentMapRecordTimeSeconds at this point: {currentMapRecordTimeSeconds}s");
                     _ = Task.Run(async () => await ReplayHandler(bot, botSlot));
-                    SharpTimerDebug($"Starting replay for {botName}");
+                    SharpTimerDebug($"OnReplayBotConnect: ReplayHandler task started for {bot.PlayerName}.");
                 });
             }
             catch (Exception ex)
@@ -467,6 +603,26 @@ namespace SharpTimer
             {
                 Console.WriteLine($"Error during deserialization: {ex.Message}");
                 return false;
+            }
+        }
+
+        private void ClearReplayVisuals(int playerSlot)
+        {
+            if (playerReplays.TryGetValue(playerSlot, out PlayerReplays? replayData) && replayData != null)
+            {
+                // Cleanup Beams
+                if (replayData.replayBeams != null && replayData.replayBeams.Count > 0)
+                {
+                    SharpTimerDebug($"Clearing {replayData.replayBeams.Count} CEnvBeam trails for slot {playerSlot}.");
+                    foreach (var beam in replayData.replayBeams)
+                    {
+                        if (beam != null && beam.IsValid)
+                        {
+                            beam.Remove();
+                        }
+                    }
+                    replayData.replayBeams.Clear();
+                }
             }
         }
     }
