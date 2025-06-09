@@ -528,6 +528,11 @@ namespace SharpTimer
                             if (bot != null)
                             {
                                 replayBotController = bot;
+            if (bot.PlayerPawn.Value != null)
+            {
+                bot.PlayerPawn.Value.SetModel("weapons/models/taser/weapon_pist_taser_mag.vmdl");
+                Utils.LogDebug($"Set replay bot model to weapons/models/taser/weapon_pist_taser_mag.vmdl");
+            }
                                 if (Utils != null) Utils.LogDebug($"Replay bot trail ready for {bot.PlayerName}. SR Ticks: {currentMapSRTicksForTrail}");
                                 Utils.LogDebug($"Found replay bot: {bot.PlayerName}");
 
@@ -535,7 +540,6 @@ namespace SharpTimer
                                 if (botPlayerPawn == null) return;
 
                                 // bot settings
-                                bot.RemoveWeapons();
                                 botPlayerPawn.Bot!.IsStopping = true;
                                 botPlayerPawn.Bot.IsSleeping = true;
                                 botPlayerPawn.Bot.AllowActive = true;
@@ -544,6 +548,7 @@ namespace SharpTimer
                                 OnPlayerConnect(bot, true);
                                 ChangePlayerName(bot, replayBotName);
                                 playerTimers[bot.Slot].IsTimerBlocked = true;
+                                bot.RemoveWeapons();
 
                                 // Initialize/clear trail variables
                                 replayBotBeamSegments.Clear();
