@@ -12,6 +12,9 @@ public partial class SharpTimer
     {
         try
         {
+            if (Utils != null) Utils.LogDebug("OnMapStartHandler: Clearing replay bot trail and controller.");
+            ClearReplayBotTrail();
+            replayBotController = null;
             Server.NextFrame(() =>
             {
                 Utils.LogDebug("OnMapStart:");
