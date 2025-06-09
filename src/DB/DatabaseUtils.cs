@@ -98,7 +98,7 @@ namespace SharpTimer
                 }
                 else
                 {
-                    using (JsonDocument? jsonConfig = LoadJsonOnMainThread(dbPath)!)
+                    using (JsonDocument? jsonConfig = Utils.LoadJsonOnMainThread(dbPath)!)
                     {
                         if (jsonConfig != null)
                         {
@@ -128,19 +128,19 @@ namespace SharpTimer
                             }
                             else
                             {
-                                SharpTimerError($"Database type not supported");
+                                Utils.LogError($"Database type not supported");
                             }
                         }
                         else
                         {
-                            SharpTimerError($"Database json was null");
+                            Utils.LogError($"Database json was null");
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                SharpTimerError($"Error in GetConnectionString: {ex.Message}");
+                Utils.LogError($"Error in GetConnectionString: {ex.Message}");
             }
             return "Server=localhost;Database=database;User ID=root;Password=root;Port=3306;";
         }
@@ -154,7 +154,7 @@ namespace SharpTimer
                 }
                 else
                 {
-                    using (JsonDocument? jsonConfig = await LoadJson(dbPath)!)
+                    using (JsonDocument? jsonConfig = await Utils.LoadJson(dbPath)!)
                     {
                         if (jsonConfig != null)
                         {
@@ -185,19 +185,19 @@ namespace SharpTimer
                             }
                             else
                             {
-                                SharpTimerError($"Database type not supported");
+                                Utils.LogError($"Database type not supported");
                             }
                         }
                         else
                         {
-                            SharpTimerError($"Database json was null");
+                            Utils.LogError($"Database json was null");
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                SharpTimerError($"Error in GetConnectionString: {ex.Message}");
+                Utils.LogError($"Error in GetConnectionString: {ex.Message}");
             }
             return "Server=localhost;Database=database;User ID=root;Password=root;Port=3306;";
         }
@@ -206,87 +206,120 @@ namespace SharpTimer
         {
             string[]? playerRecords;
             string[]? playerStats;
+            string[]? playerStageTimes;
+
             switch (dbType)
             {
                 case DatabaseType.MySQL:
-                    playerRecords = [       "MapName VARCHAR(255) DEFAULT ''",
-                                                    "SteamID VARCHAR(20) DEFAULT ''",
-                                                    "PlayerName VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT ''",
-                                                    "TimerTicks INT DEFAULT 0",
-                                                    "FormattedTime VARCHAR(255) DEFAULT ''",
-                                                    "UnixStamp INT DEFAULT 0",
-                                                    "LastFinished INT DEFAULT 0",
-                                                    "TimesFinished INT DEFAULT 0",
-                                                    "Style INT DEFAULT 0"
-                                                ];
-                    playerStats = [         "SteamID VARCHAR(20) DEFAULT ''",
-                                                    "PlayerName VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT ''",
-                                                    "TimesConnected INT DEFAULT 0",
-                                                    "LastConnected INT DEFAULT 0",
-                                                    "GlobalPoints INT DEFAULT 0",
-                                                    "HideTimerHud BOOL DEFAULT false",
-                                                    "HideKeys BOOL DEFAULT false",
-                                                    "HideJS BOOL DEFAULT false",
-                                                    "SoundsEnabled BOOL DEFAULT false",
-                                                    "PlayerFov INT DEFAULT 0",
-                                                    "IsVip BOOL DEFAULT false",
-                                                    "BigGifID VARCHAR(16) DEFAULT 'x'"
-                                                ];
+                    playerRecords = [
+                        "MapName VARCHAR(255) DEFAULT ''",
+                        "SteamID VARCHAR(20) DEFAULT ''",
+                        "PlayerName VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT ''",
+                        "TimerTicks INT DEFAULT 0",
+                        "FormattedTime VARCHAR(255) DEFAULT ''",
+                        "UnixStamp INT DEFAULT 0",
+                        "LastFinished INT DEFAULT 0",
+                        "TimesFinished INT DEFAULT 0",
+                        "Style INT DEFAULT 0"
+                    ];
+                    playerStats = [
+                        "SteamID VARCHAR(20) DEFAULT ''",
+                        "PlayerName VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT ''",
+                        "TimesConnected INT DEFAULT 0",
+                        "LastConnected INT DEFAULT 0",
+                        "GlobalPoints INT DEFAULT 0",
+                        "HideTimerHud BOOL DEFAULT false",
+                        "HideKeys BOOL DEFAULT false",
+                        "SoundsEnabled BOOL DEFAULT false",
+                        "PlayerFov INT DEFAULT 0",
+                        "IsVip BOOL DEFAULT false",
+                        "BigGifID VARCHAR(16) DEFAULT 'x'"
+                    ];
+                    playerStageTimes = [
+                        "MapName VARCHAR(255) DEFAULT ''",
+                        "SteamID VARCHAR(20) DEFAULT ''",
+                        "PlayerName VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT ''",
+                        "Stage INT DEFAULT 0",
+                        "TimerTicks INT DEFAULT 0",
+                        "FormattedTime VARCHAR(255) DEFAULT ''",
+                        "Velocity VARCHAR(255) DEFAULT ''"
+                    ];
                     break;
                 case DatabaseType.PostgreSQL:
-                    playerRecords = [       @"""MapName"" VARCHAR(255) DEFAULT ''",
-                                                    @"""SteamID"" VARCHAR(20) DEFAULT ''",
-                                                    @"""PlayerName"" VARCHAR(32) DEFAULT ''",
-                                                    @"""TimerTicks"" INT DEFAULT 0",
-                                                    @"""FormattedTime"" VARCHAR(255) DEFAULT ''",
-                                                    @"""UnixStamp"" INT DEFAULT 0",
-                                                    @"""LastFinished"" INT DEFAULT 0",
-                                                    @"""TimesFinished"" INT DEFAULT 0",
-                                                    @"""Style"" INT DEFAULT 0"
-                                                ];
-                    playerStats = [         @"""SteamID"" VARCHAR(20) DEFAULT ''",
-                                                    @"""PlayerName"" VARCHAR(32) DEFAULT ''",
-                                                    @"""TimesConnected"" INT DEFAULT 0",
-                                                    @"""LastConnected"" INT DEFAULT 0",
-                                                    @"""GlobalPoints"" INT DEFAULT 0",
-                                                    @"""HideTimerHud"" BOOL DEFAULT false",
-                                                    @"""HideKeys"" BOOL DEFAULT false",
-                                                    @"""HideJS"" BOOL DEFAULT false",
-                                                    @"""SoundsEnabled"" BOOL DEFAULT false",
-                                                    @"""PlayerFov"" INT DEFAULT 0",
-                                                    @"""IsVip"" BOOL DEFAULT false",
-                                                    @"""BigGifID"" VARCHAR(16) DEFAULT 'x'"
-                                                ];
+                    playerRecords = [
+                        @"""MapName"" VARCHAR(255) DEFAULT ''",
+                        @"""SteamID"" VARCHAR(20) DEFAULT ''",
+                        @"""PlayerName"" VARCHAR(32) DEFAULT ''",
+                        @"""TimerTicks"" INT DEFAULT 0",
+                        @"""FormattedTime"" VARCHAR(255) DEFAULT ''",
+                        @"""UnixStamp"" INT DEFAULT 0",
+                        @"""LastFinished"" INT DEFAULT 0",
+                        @"""TimesFinished"" INT DEFAULT 0",
+                        @"""Style"" INT DEFAULT 0"
+                    ];
+                    playerStats = [
+                        @"""SteamID"" VARCHAR(20) DEFAULT ''",
+                        @"""PlayerName"" VARCHAR(32) DEFAULT ''",
+                        @"""TimesConnected"" INT DEFAULT 0",
+                        @"""LastConnected"" INT DEFAULT 0",
+                        @"""GlobalPoints"" INT DEFAULT 0",
+                        @"""HideTimerHud"" BOOL DEFAULT false",
+                        @"""HideKeys"" BOOL DEFAULT false",
+                        @"""SoundsEnabled"" BOOL DEFAULT false",
+                        @"""PlayerFov"" INT DEFAULT 0",
+                        @"""IsVip"" BOOL DEFAULT false",
+                        @"""BigGifID"" VARCHAR(16) DEFAULT 'x'"
+                    ];
+                    playerStageTimes = [
+                        @"""MapName"" VARCHAR(255) DEFAULT ''",
+                        @"""SteamID"" VARCHAR(20) DEFAULT ''",
+                        @"""PlayerName"" VARCHAR(32) DEFAULT ''",
+                        @"""Stage"" INT DEFAULT 0",
+                        @"""TimerTicks"" INT DEFAULT 0",
+                        @"""FormattedTime"" VARCHAR(255) DEFAULT ''",
+                        @"""Velocity"" VARCHAR(255) DEFAULT ''"
+                    ];
                     break;
                 case DatabaseType.SQLite:
-                    playerRecords = [       "MapName TEXT DEFAULT ''",
-                                                    "SteamID TEXT DEFAULT ''",
-                                                    "PlayerName TEXT DEFAULT ''",
-                                                    "TimerTicks INT DEFAULT 0",
-                                                    "FormattedTime TEXT DEFAULT ''",
-                                                    "UnixStamp INT DEFAULT 0",
-                                                    "LastFinished INT DEFAULT 0",
-                                                    "TimesFinished INT DEFAULT 0",
-                                                    "Style INT DEFAULT 0"
-                                                ];
-                    playerStats = [         "SteamID TEXT DEFAULT ''",
-                                                    "PlayerName TEXT DEFAULT ''",
-                                                    "TimesConnected INTEGER DEFAULT 0",
-                                                    "LastConnected INTEGER DEFAULT 0",
-                                                    "GlobalPoints INTEGER DEFAULT 0",
-                                                    "HideTimerHud INTEGER DEFAULT 0",
-                                                    "HideKeys INTEGER DEFAULT 0",
-                                                    "HideJS INTEGER DEFAULT 0",
-                                                    "SoundsEnabled INTEGER DEFAULT 1",
-                                                    "PlayerFov INTEGER DEFAULT 0",
-                                                    "IsVip INTEGER DEFAULT 0",
-                                                    "BigGifID TEXT DEFAULT 'x'"
-                                                ];
+                    playerRecords = [
+                        "MapName TEXT DEFAULT ''",
+                        "SteamID TEXT DEFAULT ''",
+                        "PlayerName TEXT DEFAULT ''",
+                        "TimerTicks INT DEFAULT 0",
+                        "FormattedTime TEXT DEFAULT ''",
+                        "UnixStamp INT DEFAULT 0",
+                        "LastFinished INT DEFAULT 0",
+                        "TimesFinished INT DEFAULT 0",
+                        "Style INT DEFAULT 0"
+                    ];
+                    playerStats = [
+                        "SteamID TEXT DEFAULT ''",
+                        "PlayerName TEXT DEFAULT ''",
+                        "TimesConnected INTEGER DEFAULT 0",
+                        "LastConnected INTEGER DEFAULT 0",
+                        "GlobalPoints INTEGER DEFAULT 0",
+                        "HideTimerHud INTEGER DEFAULT 0",
+                        "HideKeys INTEGER DEFAULT 0",
+                        "SoundsEnabled INTEGER DEFAULT 1",
+                        "PlayerFov INTEGER DEFAULT 0",
+                        "IsVip INTEGER DEFAULT 0",
+                        "BigGifID TEXT DEFAULT 'x'"
+                    ];
+                    playerStageTimes = [
+                        "MapName TEXT DEFAULT ''",
+                        "SteamID TEXT DEFAULT ''",
+                        "PlayerName TEXT DEFAULT ''",
+                        "Stage INTEGER DEFAULT 0",
+                        "TimerTicks INTEGER DEFAULT 0",
+                        "FormattedTime TEXT DEFAULT ''",
+                        "Velocity TEXT DEFAULT ''"
+                    ];
                     break;
                 default:
                     playerRecords = null;
                     playerStats = null;
-                    SharpTimerError($"Database type not supported");
+                    playerStageTimes = null;
+                    Utils.LogError($"Database type not supported");
                     break;
             }
             using (var connection = await OpenConnectionAsync())
@@ -294,18 +327,23 @@ namespace SharpTimer
                 try
                 {
                     // Check PlayerRecords
-                    SharpTimerDebug($"Checking PlayerRecords Table...");
+                    Utils.LogDebug($"Checking PlayerRecords Table...");
                     await CreatePlayerRecordsTableAsync(connection);
                     await UpdateTableColumnsAsync(connection, "PlayerRecords", playerRecords!);
 
                     // Check PlayerStats
-                    SharpTimerDebug($"Checking PlayerStats Table...");
+                    Utils.LogDebug($"Checking PlayerStats Table...");
                     await CreatePlayerStatsTableAsync(connection);
                     await UpdateTableColumnsAsync(connection, $"{PlayerStatsTable}", playerStats!);
+
+                    // Check PlayerStageTimes
+                    Utils.LogDebug($"Checking PlayerStageTimes Table...");
+                    await CreatePlayerStageTimesTableAsync(connection);
+                    await UpdateTableColumnsAsync(connection, "PlayerStageTimes", playerStageTimes!);
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error in CheckTablesAsync: {ex}");
+                    Utils.LogError($"Error in CheckTablesAsync: {ex}");
                 }
             }
         }
@@ -372,7 +410,7 @@ namespace SharpTimer
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error in CreatePlayerRecordsTableAsync: {ex.Message}");
+                    Utils.LogError($"Error in CreatePlayerRecordsTableAsync: {ex.Message}");
                 }
             }
         }
@@ -385,7 +423,7 @@ namespace SharpTimer
                     string columnName = columnDefinition.Split(' ')[0];
                     if (!await ColumnExistsAsync(connection, tableName, columnName))
                     {
-                        SharpTimerDebug($"Adding column {columnName} to {tableName}...");
+                        Utils.LogDebug($"Adding column {columnName} to {tableName}...");
                         await AddColumnToTableAsync(connection, tableName, columnDefinition);
                     }
                 }
@@ -422,7 +460,7 @@ namespace SharpTimer
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error in TableExistsAsync: {ex.Message}");
+                    Utils.LogError($"Error in TableExistsAsync: {ex.Message}");
                     return false;
                 }
             }
@@ -466,7 +504,7 @@ namespace SharpTimer
                     }
                     catch (Exception ex)
                     {
-                        SharpTimerError($"Error in ColumnExistsAsync: {ex.Message}");
+                        Utils.LogError($"Error in ColumnExistsAsync: {ex.Message}");
                         return false;
                     }
                 }
@@ -479,7 +517,7 @@ namespace SharpTimer
                     }
                     catch (Exception ex)
                     {
-                        SharpTimerError($"Error in ColumnExistsAsync: {ex.Message}");
+                        Utils.LogError($"Error in ColumnExistsAsync: {ex.Message}");
                         return false;
                     }
                 }
@@ -516,7 +554,7 @@ namespace SharpTimer
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error in AddColumnToTableAsync: {ex.Message}");
+                    Utils.LogError($"Error in AddColumnToTableAsync: {ex.Message}");
                 }
             }
         }
@@ -535,11 +573,12 @@ namespace SharpTimer
                                             GlobalPoints INT,
                                             HideTimerHud BOOL,
                                             HideKeys BOOL,
-                                            HideJS BOOL,
                                             SoundsEnabled BOOL,
                                             PlayerFov INT,
                                             IsVip BOOL,
                                             BigGifID VARCHAR(16),
+                                            HideWeapon BOOL,
+                                            HidePlayers BOOL,
                                             PRIMARY KEY (SteamID)
                                         )";
                     command = new MySqlCommand(query, (MySqlConnection)connection);
@@ -553,11 +592,12 @@ namespace SharpTimer
                                             ""GlobalPoints"" INT,
                                             ""HideTimerHud"" BOOL,
                                             ""HideKeys"" BOOL,
-                                            ""HideJS"" BOOL,
                                             ""SoundsEnabled"" BOOL,
                                             ""PlayerFov"" INT,
                                             ""IsVip"" BOOL,
                                             ""BigGifID"" VARCHAR(16),
+                                            ""HideWeapon"" BOOL,
+                                            ""HidePlayers"" BOOL,
                                             PRIMARY KEY (""SteamID"")
                                         )";
                     command = new NpgsqlCommand(query, (NpgsqlConnection)connection);
@@ -571,11 +611,13 @@ namespace SharpTimer
                                             GlobalPoints INTEGER,
                                             HideTimerHud INTEGER,
                                             HideKeys INTEGER,
-                                            HideJS INTEGER,
                                             SoundsEnabled INTEGER,
                                             PlayerFov INTEGER,
                                             IsVip INTEGER,
-                                            BigGifID TEXT)";
+                                            BigGifID TEXT,
+                                            HideWeapon INTEGER,
+                                            HidePlayers INTEGER
+                                        )";
                     command = new SQLiteCommand(query, (SQLiteConnection)connection);
                     break;
                 default:
@@ -590,17 +632,81 @@ namespace SharpTimer
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error in CreatePlayerStatsTableAsync: {ex.Message}");
+                    Utils.LogError($"Error in CreatePlayerStatsTableAsync: {ex.Message}");
                 }
             }
         }
-        public async Task SavePlayerTimeToDatabase(CCSPlayerController? player, int timerTicks, string steamId, string playerName, int playerSlot, int bonusX = 0, int style = 0)
+
+        private async Task CreatePlayerStageTimesTableAsync(IDbConnection connection)
         {
-            SharpTimerDebug($"Trying to save player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks}");
+            DbCommand? command;
+            string query;
+            switch (dbType)
+            {
+                case DatabaseType.MySQL:
+                    query = @"CREATE TABLE IF NOT EXISTS PlayerStageTimes (
+                        MapName VARCHAR(255),
+                        SteamID VARCHAR(20),
+                        PlayerName VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+                        Stage INT,
+                        TimerTicks INT,
+                        FormattedTime VARCHAR(255),
+                        Velocity VARCHAR(255),
+                        PRIMARY KEY (MapName, SteamID, Stage)
+                    )";
+                    command = new MySqlCommand(query, (MySqlConnection)connection);
+                    break;
+                case DatabaseType.PostgreSQL:
+                    query = @"CREATE TABLE IF NOT EXISTS ""PlayerStageTimes"" (
+                        ""MapName"" VARCHAR(255),
+                        ""SteamID"" VARCHAR(20),
+                        ""PlayerName"" VARCHAR(32),
+                        ""Stage"" INT,
+                        ""TimerTicks"" INT,
+                        ""FormattedTime"" VARCHAR(255),
+                        ""Velocity"" VARCHAR(255),
+                        PRIMARY KEY (""MapName"", ""SteamID"", ""Stage"")
+                    )";
+                    command = new NpgsqlCommand(query, (NpgsqlConnection)connection);
+                    break;
+                case DatabaseType.SQLite:
+                    query = @"CREATE TABLE IF NOT EXISTS PlayerStageTimes (
+                        MapName TEXT,
+                        SteamID TEXT,
+                        PlayerName TEXT,
+                        Stage INTEGER,
+                        TimerTicks INTEGER,
+                        FormattedTime TEXT,
+                        Velocity TEXT,
+                        PRIMARY KEY (MapName, SteamID, Stage)
+                    )";
+                    command = new SQLiteCommand(query, (SQLiteConnection)connection);
+                    break;
+                default:
+                    command = null;
+                    break;
+            }
+
+            using (command)
+            {
+                try
+                {
+                    await command!.ExecuteNonQueryAsync();
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogError($"Error in CreatePlayerStageTimesTableAsync: {ex.Message}");
+                }
+            }
+        }
+
+        public async Task SavePlayerTimeToDatabase(CCSPlayerController? player, int timerTicks, string steamId, string playerName, int slot, int bonusX = 0, int style = 0)
+        {
+            Utils.LogDebug($"Trying to save player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks}");
             try
             {
                 if (!IsAllowedPlayer(player)) return;
-                //if ((bonusX == 0 && !playerTimers[playerSlot].IsTimerRunning) || (bonusX != 0 && !playerTimers[playerSlot].IsBonusTimerRunning)) return;
+                //if ((bonusX == 0 && !playerTimers[slot].IsTimerRunning) || (bonusX != 0 && !playerTimers[slot].IsBonusTimerRunning)) return;
                 string currentMapNamee = bonusX == 0 ? currentMapName! : $"{currentMapName}_bonus{bonusX}";
 
                 int timeNowUnix = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -620,7 +726,7 @@ namespace SharpTimer
                 {
                     await CreatePlayerRecordsTableAsync(connection);
 
-                    string formattedTime = FormatTime(timerTicks);
+                    string formattedTime = Utils.FormatTime(timerTicks);
                     string? selectQuery;
                     DbCommand? selectCommand;
                     switch (dbType)
@@ -668,7 +774,7 @@ namespace SharpTimer
                             dBFormattedTime = formattedTime;
                             playerPoints = timerTicks;
                             beatPB = true;
-                            if (enableReplays && !onlySRReplay) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, playerSlot, bonusX, playerTimers[playerSlot].currentStyle));
+                            if (enableReplays && !onlySRReplay) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
                         }
                         else
                         {
@@ -754,10 +860,11 @@ namespace SharpTimer
                             upsertCommand!.AddParameterWithValue("@UnixStamp", dBunixStamp);
                             upsertCommand!.AddParameterWithValue("@SteamID", steamId);
                             upsertCommand!.AddParameterWithValue("@Style", style);
-                            if (style == 0 && (stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0 && enableDb && timerTicks < dBtimerTicks) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, playerSlot)));
+                            if (style == 0 && (stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0 && enableDb && timerTicks < dBtimerTicks && !ignoreJSON) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, slot)));
                             var prevSRID = await GetMapRecordSteamIDFromDatabase(bonusX, 0, style);
                             var prevSR = await GetPreviousPlayerRecordFromDatabase(prevSRID.Item1, currentMapNamee, prevSRID.Item2, bonusX, style);
                             await upsertCommand!.ExecuteNonQueryAsync();
+
                             Server.NextFrame(() => SharpTimerDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
 
                             // Update currentMapRecordTimeSeconds if this is a new SR for the main map (style 0, bonus 0)
@@ -773,14 +880,16 @@ namespace SharpTimer
                                 SharpTimerDebug($"New MAIN MAP SR by {playerName}! currentMapRecordTimeSeconds updated to: {currentMapRecordTimeSeconds}s (Ticks: {timerTicks}). Tickrate used: {tickRate}");
                             }
 
-                            if (enableDb && IsAllowedPlayer(player)) await RankCommandHandler(player, steamId, playerSlot, playerName, true, style);
-                            if (globalRanksEnabled == true) await SavePlayerPoints(steamId, playerName, playerSlot, timerTicks, dBtimerTicks, beatPB, bonusX, style, dBtimesFinished);
+                            Server.NextFrame(() => Utils.LogDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
+                            if (enableDb && IsAllowedPlayer(player)) await RankCommandHandler(player, steamId, slot, playerName, true, style);
+                            if (globalRanksEnabled == true) await SavePlayerPoints(steamId, playerName, slot, timerTicks, dBtimerTicks, beatPB, bonusX, style, dBtimesFinished);
+
                             if (IsAllowedPlayer(player)) Server.NextFrame(() => _ = Task.Run(async () => await PrintMapTimeToChat(player!, steamId, playerName, dBtimerTicks, timerTicks, bonusX, dBtimesFinished, style, prevSR)));
-                            if (enableReplays && onlySRReplay && prevSR > timerTicks) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, playerSlot, bonusX, playerTimers[playerSlot].currentStyle));
+                            if (enableReplays && onlySRReplay && (prevSR == 0 || prevSR > timerTicks)) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
                     
                             Server.NextFrame(async () =>
                             {
-                                var (hostname, ip) = GetHostnameAndIp();
+                                var (hostname, ip) = Utils.GetHostnameAndIp();
                                 var (globalCheck, maxVel, maxWish) = CheckCvarsAndMaxVelo();
                                 if (!globalCheck)
                                     return;
@@ -802,7 +911,7 @@ namespace SharpTimer
                                         timer_ticks = timerTicks,
                                         steamid = steamId,
                                         player_name = playerName,
-                                        formatted_time = FormatTime(timerTicks),
+                                        formatted_time = Utils.FormatTime(timerTicks),
                                         unix_stamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                                         times_finished = dBtimesFinished,
                                         style = style,
@@ -829,7 +938,7 @@ namespace SharpTimer
                                             map_name = currentMapNamee,
                                             style = style,
                                             hash = GetHash(),
-                                            replay_data = await GetReplayJson(player!, player!.Slot)
+                                            replay_data = GetReplayJson(player!, player!.Slot)
                                         };
 
                                         await SubmitReplayAsync(replay_payload);
@@ -841,8 +950,8 @@ namespace SharpTimer
                     }
                     else
                     {
-                        Server.NextFrame(() => SharpTimerDebug($"No player record yet"));
-                        if (enableReplays && !onlySRReplay) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, playerSlot, bonusX, playerTimers[playerSlot].currentStyle));
+                        Server.NextFrame(() => Utils.LogDebug($"No player record yet"));
+                        if (enableReplays && !onlySRReplay) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
                         await row.CloseAsync();
 
                         string? upsertQuery;
@@ -882,6 +991,7 @@ namespace SharpTimer
                             var prevSR = await GetPreviousPlayerRecordFromDatabase(prevSRID.Item1, currentMapNamee, prevSRID.Item2, bonusX, style);
                             await upsertCommand!.ExecuteNonQueryAsync();
 
+
                             // Update currentMapRecordTimeSeconds if this is a new SR for the main map (style 0, bonus 0)
                             // This case is for when the player is the first to set a record on the map.
                             if (bonusX == 0 && style == 0 && (prevSR == 0 || timerTicks < prevSR)) // prevSR == 0 indicates first record
@@ -896,16 +1006,17 @@ namespace SharpTimer
                                 SharpTimerDebug($"New MAIN MAP SR by {playerName} (first record)! currentMapRecordTimeSeconds updated to: {currentMapRecordTimeSeconds}s (Ticks: {timerTicks}). Tickrate used: {tickRate}");
                             }
 
-                            if (globalRanksEnabled == true) await SavePlayerPoints(steamId, playerName, playerSlot, timerTicks, dBtimerTicks, beatPB, bonusX, style, dBtimesFinished);
-                            if (style == 0 && (stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, playerSlot)));
-                            Server.NextFrame(() => SharpTimerDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
-                            if (IsAllowedPlayer(player)) await RankCommandHandler(player, steamId, playerSlot, playerName, true, style);
+                            if (globalRanksEnabled == true) await SavePlayerPoints(steamId, playerName, slot, timerTicks, dBtimerTicks, beatPB, bonusX, style, dBtimesFinished);
+                            if (style == 0 && (stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0 && !ignoreJSON) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, slot)));
+                            Server.NextFrame(() => Utils.LogDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
+                            if (IsAllowedPlayer(player)) await RankCommandHandler(player, steamId, slot, playerName, true, style);
+
                             if (IsAllowedPlayer(player)) Server.NextFrame(() => _ = Task.Run(async () => await PrintMapTimeToChat(player!, steamId, playerName, dBtimerTicks, timerTicks, bonusX, 1, style, prevSR)));
-                            if (enableReplays && onlySRReplay && prevSR > timerTicks) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, playerSlot, bonusX, playerTimers[playerSlot].currentStyle));
+                            if (enableReplays && onlySRReplay && (prevSR == 0 || prevSR > timerTicks)) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
                             
                             Server.NextFrame(async () =>
                             {
-                                var (hostname, ip) = GetHostnameAndIp();
+                                var (hostname, ip) = Utils.GetHostnameAndIp();
                                 var (globalCheck, maxVel, maxWish) = CheckCvarsAndMaxVelo();
                                 if (!globalCheck)
                                     return;
@@ -924,7 +1035,7 @@ namespace SharpTimer
                                         timer_ticks = timerTicks,
                                         steamid = steamId,
                                         player_name = playerName,
-                                        formatted_time = FormatTime(timerTicks),
+                                        formatted_time = Utils.FormatTime(timerTicks),
                                         unix_stamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                                         times_finished = dBtimesFinished,
                                         style = style,
@@ -950,7 +1061,7 @@ namespace SharpTimer
                                             map_name = currentMapNamee,
                                             style = style,
                                             hash = GetHash(),
-                                            replay_data = await GetReplayJson(player!, player!.Slot)
+                                            replay_data = GetReplayJson(player!, player!.Slot)
                                         };
 
                                         await SubmitReplayAsync(replay_payload);
@@ -964,17 +1075,17 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error saving player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database: {ex.Message}"));
+                Server.NextFrame(() => Utils.LogError($"Error saving player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database: {ex.Message}"));
             }
         }
 
-        public async Task GetPlayerStats(CCSPlayerController? player, string steamId, string playerName, int playerSlot, bool fromConnect)
+        public async Task GetPlayerStats(CCSPlayerController? player, string steamId, string playerName, int slot, bool fromConnect)
         {
-            SharpTimerDebug($"Trying to get player stats from database for {playerName}");
+            Utils.LogDebug($"Trying to get player stats from database for {playerName}");
             try
             {
                 if (player == null || !player.IsValid || player.IsBot) return;
-                if (!(connectedPlayers.ContainsKey(playerSlot) && playerTimers.ContainsKey(playerSlot))) return;
+                if (!(connectedPlayers.ContainsKey(slot) && playerTimers.ContainsKey(slot))) return;
 
                 int timeNowUnix = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 // get player columns
@@ -982,7 +1093,6 @@ namespace SharpTimer
                 int lastConnected = 0;
                 bool hideTimerHud = false;
                 bool hideKeys = false;
-                bool hideJS = false;
                 bool soundsEnabled = true;
                 int playerFov = 0;
                 bool isVip = false;
@@ -1000,15 +1110,15 @@ namespace SharpTimer
                     switch (dbType)
                     {
                         case DatabaseType.MySQL:
-                            selectQuery = $@"SELECT PlayerName, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers FROM {PlayerStatsTable} WHERE SteamID = @SteamID";
+                            selectQuery = $@"SELECT PlayerName, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers FROM {PlayerStatsTable} WHERE SteamID = @SteamID";
                             selectCommand = new MySqlCommand(selectQuery, (MySqlConnection)connection);
                             break;
                         case DatabaseType.PostgreSQL:
-                            selectQuery = $@"SELECT ""PlayerName"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""HideJS"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"" FROM ""{PlayerStatsTable}"" WHERE ""SteamID"" = @SteamID";
+                            selectQuery = $@"SELECT ""PlayerName"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"" FROM ""{PlayerStatsTable}"" WHERE ""SteamID"" = @SteamID";
                             selectCommand = new NpgsqlCommand(selectQuery, (NpgsqlConnection)connection);
                             break;
                         case DatabaseType.SQLite:
-                            selectQuery = $@"SELECT PlayerName, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers FROM {PlayerStatsTable} WHERE SteamID = @SteamID";
+                            selectQuery = $@"SELECT PlayerName, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers FROM {PlayerStatsTable} WHERE SteamID = @SteamID";
                             selectCommand = new SQLiteCommand(selectQuery, (SQLiteConnection)connection);
                             break;
                         default:
@@ -1033,7 +1143,6 @@ namespace SharpTimer
                                     timesConnected = row.GetInt32("TimesConnected");
                                     hideTimerHud = row.GetBoolean("HideTimerHud");
                                     hideKeys = row.GetBoolean("HideKeys");
-                                    hideJS = row.GetBoolean("HideJS");
                                     hideWeapon = row.GetBoolean("HideWeapon");
                                     hidePlayers = row.GetBoolean("HidePlayers");
                                     soundsEnabled = row.GetBoolean("SoundsEnabled");
@@ -1046,7 +1155,6 @@ namespace SharpTimer
                                     timesConnected = row.GetInt32("TimesConnected");
                                     hideTimerHud = row.GetSQLiteBool("HideTimerHud");
                                     hideKeys = row.GetSQLiteBool("HideKeys");
-                                    hideJS = row.GetSQLiteBool("HideJS");
                                     hideWeapon = row.GetSQLiteBool("HideWeapon");
                                     hidePlayers = row.GetSQLiteBool("HidePlayers");
                                     soundsEnabled = row.GetSQLiteBool("SoundsEnabled");
@@ -1062,11 +1170,10 @@ namespace SharpTimer
                             lastConnected = timeNowUnix;
                             Server.NextFrame(() =>
                             {
-                                if (playerTimers.TryGetValue(playerSlot, out PlayerTimerInfo? value))
+                                if (playerTimers.TryGetValue(slot, out PlayerTimerInfo? value))
                                 {
                                     value.HideTimerHud = hideTimerHud;
                                     value.HideKeys = hideKeys;
-                                    value.HideJumpStats = hideJS;
                                     value.HideWeapon = hideWeapon;
                                     value.HidePlayers = hidePlayers;
                                     value.SoundsEnabled = soundsEnabled;
@@ -1077,7 +1184,7 @@ namespace SharpTimer
                                 }
                                 else
                                 {
-                                    SharpTimerError($"Error getting player stats from database for {playerName}: player was not on the server anymore");
+                                    Utils.LogError($"Error getting player stats from database for {playerName}: player was not on the server anymore");
                                     return;
                                 }
                             });
@@ -1090,16 +1197,16 @@ namespace SharpTimer
                             switch (dbType)
                             {
                                 case DatabaseType.MySQL:
-                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) 
-                                                        VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) 
+                                                        VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new MySqlCommand(upsertQuery, (MySqlConnection)connection);
                                     break;
                                 case DatabaseType.PostgreSQL:
                                     upsertQuery = $@"
                                                     INSERT INTO ""{PlayerStatsTable}"" 
-                                                    (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""HideJS"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"")
+                                                    (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"")
                                                     VALUES 
-                                                    (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)
+                                                    (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)
                                                     ON CONFLICT (""SteamID"")
                                                     DO UPDATE SET
                                                     ""PlayerName"" = EXCLUDED.""PlayerName"",
@@ -1107,7 +1214,6 @@ namespace SharpTimer
                                                     ""LastConnected"" = EXCLUDED.""LastConnected"",
                                                     ""HideTimerHud"" = EXCLUDED.""HideTimerHud"",
                                                     ""HideKeys"" = EXCLUDED.""HideKeys"",
-                                                    ""HideJS"" = EXCLUDED.""HideJS"",
                                                     ""SoundsEnabled"" = EXCLUDED.""SoundsEnabled"",
                                                     ""PlayerFov"" = EXCLUDED.""PlayerFov"",
                                                     ""IsVip"" = EXCLUDED.""IsVip"",
@@ -1119,8 +1225,8 @@ namespace SharpTimer
                                     upsertCommand = new NpgsqlCommand(upsertQuery, (NpgsqlConnection)connection);
                                     break;
                                 case DatabaseType.SQLite:
-                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) 
-                                                        VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) 
+                                                        VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new SQLiteCommand(upsertQuery, (SQLiteConnection)connection);
                                     break;
                                 default:
@@ -1137,7 +1243,6 @@ namespace SharpTimer
                                 upsertCommand!.AddParameterWithValue("@LastConnected", lastConnected);
                                 upsertCommand!.AddParameterWithValue("@HideTimerHud", hideTimerHud);
                                 upsertCommand!.AddParameterWithValue("@HideKeys", hideKeys);
-                                upsertCommand!.AddParameterWithValue("@HideJS", hideJS);
                                 upsertCommand!.AddParameterWithValue("@SoundsEnabled", soundsEnabled);
                                 upsertCommand!.AddParameterWithValue("@PlayerFov", playerFov);
                                 upsertCommand!.AddParameterWithValue("@IsVip", isVip);
@@ -1147,14 +1252,14 @@ namespace SharpTimer
                                 upsertCommand!.AddParameterWithValue("@HidePlayers", hidePlayers);
 
                                 await upsertCommand!.ExecuteNonQueryAsync();
-                                Server.NextFrame(() => SharpTimerDebug($"Got player stats from database for {playerName}"));
-                                if (connectMsgEnabled) Server.NextFrame(() => Server.PrintToChatAll($"{Localizer["prefix"]} {Localizer["connected_message", playerName, FormatOrdinal(timesConnected)]}"));
+                                Server.NextFrame(() => Utils.LogDebug($"Got player stats from database for {playerName}"));
+                                if (connectMsgEnabled) Server.NextFrame(() => Utils.PrintToChatAll($"{Localizer["connected_message", playerName, Utils.FormatOrdinal(timesConnected)]}"));
                             }
 
                         }
                         else
                         {
-                            Server.NextFrame(() => SharpTimerDebug($"No player stats yet"));
+                            Server.NextFrame(() => Utils.LogDebug($"No player stats yet"));
                             await row.CloseAsync();
 
                             string? upsertQuery;
@@ -1162,15 +1267,15 @@ namespace SharpTimer
                             switch (dbType)
                             {
                                 case DatabaseType.MySQL:
-                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new MySqlCommand(upsertQuery, (MySqlConnection)connection);
                                     break;
                                 case DatabaseType.PostgreSQL:
-                                    upsertQuery = $@"INSERT INTO ""{PlayerStatsTable}"" (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""HideJS"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"") VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"INSERT INTO ""{PlayerStatsTable}"" (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"") VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new NpgsqlCommand(upsertQuery, (NpgsqlConnection)connection);
                                     break;
                                 case DatabaseType.SQLite:
-                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new SQLiteCommand(upsertQuery, (SQLiteConnection)connection);
                                     break;
                                 default:
@@ -1187,7 +1292,6 @@ namespace SharpTimer
                                 upsertCommand!.AddParameterWithValue("@LastConnected", timeNowUnix);
                                 upsertCommand!.AddParameterWithValue("@HideTimerHud", false);
                                 upsertCommand!.AddParameterWithValue("@HideKeys", false);
-                                upsertCommand!.AddParameterWithValue("@HideJS", false);
                                 upsertCommand!.AddParameterWithValue("@SoundsEnabled", soundsEnabledByDefault);
                                 upsertCommand!.AddParameterWithValue("@PlayerFov", 0);
                                 upsertCommand!.AddParameterWithValue("@IsVip", false);
@@ -1197,8 +1301,8 @@ namespace SharpTimer
                                 upsertCommand!.AddParameterWithValue("@HidePlayers", false);
 
                                 await upsertCommand!.ExecuteNonQueryAsync();
-                                Server.NextFrame(() => SharpTimerDebug($"Got player stats from database for {playerName}"));
-                                if (connectMsgEnabled) Server.NextFrame(() => Server.PrintToChatAll($"{Localizer["prefix"]} {Localizer["connected_message_first", playerName]}"));
+                                Server.NextFrame(() => Utils.LogDebug($"Got player stats from database for {playerName}"));
+                                if (connectMsgEnabled) Server.NextFrame(() => Utils.PrintToChatAll($"{Localizer["connected_message_first", playerName]}"));
                             }
                         }
                     }
@@ -1206,16 +1310,19 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error getting player stats from database for {playerName}: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"Error getting player stats from database for {playerName}: {ex}"));
             }
         }
-        public async Task SavePlayerStageTimeToDatabase(CCSPlayerController? player, int timerTicks, int stage, string velocity, string steamId, string playerName, int playerSlot, int bonusX = 0, int style = 0)
+
+        public async Task SavePlayerStageTimeToDatabase(CCSPlayerController? player, int timerTicks, int stage, string velocity, string steamId, string playerName, int slot, int bonusX = 0, int style = 0)
         {
-            SharpTimerDebug($"Trying to save player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"stage {stage} time")} to database for {playerName} {timerTicks}");
+            Utils.LogDebug($"Trying to save player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"stage {stage} time")} to database for {playerName} {timerTicks}");
             try
             {
-                if (!IsAllowedPlayer(player)) return;
-                //if ((bonusX == 0 && !playerTimers[playerSlot].IsTimerRunning) || (bonusX != 0 && !playerTimers[playerSlot].IsBonusTimerRunning)) return;
+                if (player == null || !IsAllowedPlayer(player))
+                    return;
+
+                //if ((bonusX == 0 && !playerTimers[slot].IsTimerRunning) || (bonusX != 0 && !playerTimers[slot].IsBonusTimerRunning)) return;
                 string currentMapNamee = bonusX == 0 ? currentMapName! : $"{currentMapName}_bonus{bonusX}";
 
                 int timeNowUnix = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -1229,7 +1336,7 @@ namespace SharpTimer
 
                 using (var connection = await OpenConnectionAsync())
                 {
-                    string formattedTime = FormatTime(timerTicks);
+                    string formattedTime = Utils.FormatTime(timerTicks);
                     string? selectQuery;
                     DbCommand? selectCommand;
                     switch (dbType)
@@ -1275,7 +1382,7 @@ namespace SharpTimer
                                 playerPoints = 320000;
                             }
                             //not saving replays for stage times
-                            //if (enableReplays == true && enableDb) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, playerSlot, bonusX, playerTimers[playerSlot].currentStyle));
+                            //if (enableReplays == true && enableDb) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
                         }
                         else
                         {
@@ -1354,21 +1461,21 @@ namespace SharpTimer
                             upsertCommand!.AddParameterWithValue("@Stage", stage);
                             upsertCommand!.AddParameterWithValue("@Velocity", velocity);
                             //no points for stage times until points overhaul
-                            //if (enableDb && globalRanksEnabled == true && ((dBtimesFinished <= maxGlobalFreePoints && globalRanksFreePointsEnabled == true) || beatPB)) await SavePlayerPoints(steamId, playerName, playerSlot, playerPoints, dBtimerTicks, beatPB, bonusX, style);
+                            //if (enableDb && globalRanksEnabled == true && ((dBtimesFinished <= maxGlobalFreePoints && globalRanksFreePointsEnabled == true) || beatPB)) await SavePlayerPoints(steamId, playerName, slot, playerPoints, dBtimerTicks, beatPB, bonusX, style);
                             //dont save stagetimes unless they complete map
-                            //if ((stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0 && enableDb && timerTicks < dBtimerTicks) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, playerSlot)));
+                            //if ((stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0 && enableDb && timerTicks < dBtimerTicks) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, slot)));
                             var prevSRID = await GetStageRecordSteamIDFromDatabase(bonusX, 0, style);
                             var prevSR = await GetPreviousPlayerStageRecordFromDatabase(player, prevSRID.Item1, currentMapNamee, stage, prevSRID.Item2, bonusX);
                             await upsertCommand!.ExecuteNonQueryAsync();
-                            Server.NextFrame(() => SharpTimerDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"{stage} time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
-                            if (IsAllowedPlayer(player)) Server.NextFrame(() => _ = Task.Run(async () => await PrintStageTimeToChat(player!, steamId, playerName, dBtimerTicks, timerTicks, stage, bonusX, prevSR)));
+                            Server.NextFrame(() => Utils.LogDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"{stage} time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
+                            if (IsAllowedPlayer(player) && enableStageTimes && enableStageSR) Server.NextFrame(() => _ = Task.Run(async () => await PrintStageTimeToChat(player!, steamId, playerName, dBtimerTicks, timerTicks, stage, bonusX, prevSR)));
                         }
                     }
                     else
                     {
-                        Server.NextFrame(() => SharpTimerDebug($"No player record yet"));
+                        Server.NextFrame(() => Utils.LogDebug($"No player record yet"));
                         //dont save stagetimes unless they complete map
-                        //if (enableReplays == true && usePostgres == true) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, playerSlot, bonusX, playerTimers[playerSlot].currentStyle));
+                        //if (enableReplays == true && usePostgres == true) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
                         await row.CloseAsync();
 
                         string? upsertQuery;
@@ -1406,11 +1513,11 @@ namespace SharpTimer
                             var prevSR = await GetPreviousPlayerStageRecordFromDatabase(player, prevSRID.Item1, currentMapNamee, stage, prevSRID.Item2, bonusX);
                             await upsertCommand!.ExecuteNonQueryAsync();
                             //no points until points overhaul
-                            //if (globalRanksEnabled == true) await SavePlayerPoints(steamId, playerName, playerSlot, timerTicks, dBtimerTicks, beatPB, bonusX, style);
+                            //if (globalRanksEnabled == true) await SavePlayerPoints(steamId, playerName, slot, timerTicks, dBtimerTicks, beatPB, bonusX, style);
                             //dont save stagetimes unless they complete map
-                            //if ((stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, playerSlot)));
-                            Server.NextFrame(() => SharpTimerDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"stage {stage} time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
-                            if (IsAllowedPlayer(player) && enableStageTimes) Server.NextFrame(() => _ = Task.Run(async () => await PrintStageTimeToChat(player!, steamId, playerName, dBtimerTicks, timerTicks, stage, bonusX, prevSR)));
+                            //if ((stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, slot)));
+                            Server.NextFrame(() => Utils.LogDebug($"Saved player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"stage {stage} time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
+                            if (IsAllowedPlayer(player) && enableStageTimes && enableStageSR) Server.NextFrame(() => _ = Task.Run(async () => await PrintStageTimeToChat(player!, steamId, playerName, dBtimerTicks, timerTicks, stage, bonusX, prevSR)));
                         }
 
                     }
@@ -1418,13 +1525,13 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error saving player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database: {ex.Message}"));
+                Server.NextFrame(() => Utils.LogError($"Error saving player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database: {ex.Message}"));
             }
         }
 
-        public async Task SetPlayerStats(CCSPlayerController? player, string steamId, string playerName, int playerSlot)
+        public async Task SetPlayerStats(CCSPlayerController? player, string steamId, string playerName, int slot)
         {
-            SharpTimerDebug($"Trying to set player stats in database for {playerName}");
+            Utils.LogDebug($"Trying to set player stats in database for {playerName}");
             try
             {
                 if (!IsAllowedPlayer(player)) return;
@@ -1432,13 +1539,12 @@ namespace SharpTimer
                 // get player columns
                 int timesConnected = 0;
                 int lastConnected = 0;
-                bool hideTimerHud = false;
+                /*bool hideTimerHud = false;
                 bool hideKeys = false;
-                bool hideJS = false;
                 bool hideWeapon = false;
                 bool hidePlayers = false;
                 bool soundsEnabled = true;
-                int playerFov = 0;
+                int playerFov = 0;*/
                 bool isVip = false;
                 string bigGif = "x";
                 int playerPoints = 0;
@@ -1502,15 +1608,15 @@ namespace SharpTimer
                             switch (dbType)
                             {
                                 case DatabaseType.MySQL:
-                                    upsertQuery = $"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new MySqlCommand(upsertQuery, (MySqlConnection)connection);
                                     break;
                                 case DatabaseType.PostgreSQL:
                                     upsertQuery = $@"
                                                     INSERT INTO ""{PlayerStatsTable}"" 
-                                                    (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""HideJS"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"")
+                                                    (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"")
                                                     VALUES 
-                                                    (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)
+                                                    (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)
                                                     ON CONFLICT (""SteamID"")
                                                     DO UPDATE SET
                                                     ""PlayerName"" = EXCLUDED.""PlayerName"",
@@ -1518,7 +1624,6 @@ namespace SharpTimer
                                                     ""LastConnected"" = EXCLUDED.""LastConnected"",
                                                     ""HideTimerHud"" = EXCLUDED.""HideTimerHud"",
                                                     ""HideKeys"" = EXCLUDED.""HideKeys"",
-                                                    ""HideJS"" = EXCLUDED.""HideJS"",
                                                     ""SoundsEnabled"" = EXCLUDED.""SoundsEnabled"",
                                                     ""PlayerFov"" = EXCLUDED.""PlayerFov"",
                                                     ""IsVip"" = EXCLUDED.""IsVip"",
@@ -1530,7 +1635,7 @@ namespace SharpTimer
                                     upsertCommand = new NpgsqlCommand(upsertQuery, (NpgsqlConnection)connection);
                                     break;
                                 case DatabaseType.SQLite:
-                                    upsertQuery = $"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new SQLiteCommand(upsertQuery, (SQLiteConnection)connection);
                                     break;
                                 default:
@@ -1541,7 +1646,7 @@ namespace SharpTimer
 
                             using (upsertCommand)
                             {
-                                if (playerTimers.TryGetValue(playerSlot, out PlayerTimerInfo? value))
+                                if (playerTimers.TryGetValue(slot, out PlayerTimerInfo? value))
                                 {
                                     upsertCommand!.AddParameterWithValue("@PlayerName", playerName);
                                     upsertCommand!.AddParameterWithValue("@SteamID", steamId);
@@ -1551,7 +1656,6 @@ namespace SharpTimer
                                     upsertCommand!.AddParameterWithValue("@HideKeys", value.HideKeys);
                                     upsertCommand!.AddParameterWithValue("@HideWeapon", value.HideWeapon);
                                     upsertCommand!.AddParameterWithValue("@HidePlayers", value.HidePlayers);
-                                    upsertCommand!.AddParameterWithValue("@HideJS", value.HideJumpStats);
                                     upsertCommand!.AddParameterWithValue("@SoundsEnabled", value.SoundsEnabled);
                                     upsertCommand!.AddParameterWithValue("@PlayerFov", value.PlayerFov);
                                     upsertCommand!.AddParameterWithValue("@IsVip", isVip);
@@ -1559,11 +1663,11 @@ namespace SharpTimer
                                     upsertCommand!.AddParameterWithValue("@GlobalPoints", playerPoints);
 
                                     await upsertCommand!.ExecuteNonQueryAsync();
-                                    Server.NextFrame(() => SharpTimerDebug($"Set player stats in database for {playerName}"));
+                                    Server.NextFrame(() => Utils.LogDebug($"Set player stats in database for {playerName}"));
                                 }
                                 else
                                 {
-                                    SharpTimerError($"Error setting player stats in database for {playerName}: player was not on the server anymore");
+                                    Utils.LogError($"Error setting player stats in database for {playerName}: player was not on the server anymore");
 
                                     return;
                                 }
@@ -1572,7 +1676,7 @@ namespace SharpTimer
                         }
                         else
                         {
-                            Server.NextFrame(() => SharpTimerDebug($"No player stats yet"));
+                            Server.NextFrame(() => Utils.LogDebug($"No player stats yet"));
                             await row.CloseAsync();
 
                             string? upsertQuery;
@@ -1580,15 +1684,15 @@ namespace SharpTimer
                             switch (dbType)
                             {
                                 case DatabaseType.MySQL:
-                                    upsertQuery = $"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new MySqlCommand(upsertQuery, (MySqlConnection)connection);
                                     break;
                                 case DatabaseType.PostgreSQL:
-                                    upsertQuery = $@"INSERT INTO ""{PlayerStatsTable}"" (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""HideJS"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"") VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"INSERT INTO ""{PlayerStatsTable}"" (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"") VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new NpgsqlCommand(upsertQuery, (NpgsqlConnection)connection);
                                     break;
                                 case DatabaseType.SQLite:
-                                    upsertQuery = $"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new SQLiteCommand(upsertQuery, (SQLiteConnection)connection);
                                     break;
                                 default:
@@ -1599,29 +1703,28 @@ namespace SharpTimer
 
                             using (upsertCommand)
                             {
-                                if (playerTimers.TryGetValue(playerSlot, out PlayerTimerInfo? value))
+                                if (playerTimers.TryGetValue(slot, out PlayerTimerInfo? value))
                                 {
                                     upsertCommand!.AddParameterWithValue("@PlayerName", playerName);
                                     upsertCommand!.AddParameterWithValue("@SteamID", steamId);
                                     upsertCommand!.AddParameterWithValue("@TimesConnected", 1);
                                     upsertCommand!.AddParameterWithValue("@LastConnected", timeNowUnix);
-                                    upsertCommand!.AddParameterWithValue("@HideTimerHud", playerTimers[playerSlot].HideTimerHud);
-                                    upsertCommand!.AddParameterWithValue("@HideKeys", playerTimers[playerSlot].HideKeys);
-                                    upsertCommand!.AddParameterWithValue("@HideWeapon", playerTimers[playerSlot].HideWeapon);
-                                    upsertCommand!.AddParameterWithValue("@HidePlayers", playerTimers[playerSlot].HidePlayers);
-                                    upsertCommand!.AddParameterWithValue("@HideJS", playerTimers[playerSlot].HideJumpStats);
-                                    upsertCommand!.AddParameterWithValue("@SoundsEnabled", playerTimers[playerSlot].SoundsEnabled);
-                                    upsertCommand!.AddParameterWithValue("@PlayerFov", playerTimers[playerSlot].PlayerFov);
+                                    upsertCommand!.AddParameterWithValue("@HideTimerHud", playerTimers[slot].HideTimerHud);
+                                    upsertCommand!.AddParameterWithValue("@HideKeys", playerTimers[slot].HideKeys);
+                                    upsertCommand!.AddParameterWithValue("@HideWeapon", playerTimers[slot].HideWeapon);
+                                    upsertCommand!.AddParameterWithValue("@HidePlayers", playerTimers[slot].HidePlayers);
+                                    upsertCommand!.AddParameterWithValue("@SoundsEnabled", playerTimers[slot].SoundsEnabled);
+                                    upsertCommand!.AddParameterWithValue("@PlayerFov", playerTimers[slot].PlayerFov);
                                     upsertCommand!.AddParameterWithValue("@IsVip", false);
                                     upsertCommand!.AddParameterWithValue("@BigGifID", "x");
                                     upsertCommand!.AddParameterWithValue("@GlobalPoints", 0);
 
                                     await upsertCommand!.ExecuteNonQueryAsync();
-                                    Server.NextFrame(() => SharpTimerDebug($"Set player stats in database for {playerName}"));
+                                    Server.NextFrame(() => Utils.LogDebug($"Set player stats in database for {playerName}"));
                                 }
                                 else
                                 {
-                                    SharpTimerError($"Error setting player stats in database for {playerName}: player was not on the server anymore");
+                                    Utils.LogError($"Error setting player stats in database for {playerName}: player was not on the server anymore");
 
                                     return;
                                 }
@@ -1633,13 +1736,13 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error setting player stats in database for {playerName}: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"Error setting player stats in database for {playerName}: {ex}"));
             }
         }
 
         public void GainPointsMessage(string playerName, double newPoints, double playerPoints)
         {
-            PrintToChatAll(Localizer["gained_points", playerName, Convert.ToInt32(newPoints - playerPoints), newPoints]);
+            Utils.PrintToChatAll(Localizer["gained_points", playerName, Convert.ToInt32(newPoints - playerPoints), newPoints]);
         }
 
         public (string, int) FixMapAndBonus(string mapName)
@@ -1659,9 +1762,9 @@ namespace SharpTimer
             return (mapName, 0);
         }
 
-        public async Task SavePlayerPoints(string steamId, string playerName, int playerSlot, int timerTicks, int oldTicks, bool beatPB = false, int bonusX = 0, int style = 0, int completions = 0, string mapname = "", bool import = false)
+        public async Task SavePlayerPoints(string steamId, string playerName, int slot, int timerTicks, int oldTicks, bool beatPB = false, int bonusX = 0, int style = 0, int completions = 0, string mapname = "", bool import = false)
         {
-            SharpTimerDebug($"Trying to set player points in database for {playerName}");
+            Utils.LogDebug($"Trying to set player points in database for {playerName}");
             try
             {
                 if (mapname == "") mapname = currentMapName!;
@@ -1674,11 +1777,10 @@ namespace SharpTimer
                 // get player columns
                 int timesConnected = 0;
                 int lastConnected = 0;
-                bool hideTimerHud = false;
+                /*bool hideTimerHud = false;
                 bool hideKeys = false;
-                bool hideJS = false;
                 bool soundsEnabled = true;
-                int playerFov = 0;
+                int playerFov = 0;*/
                 bool isVip = false;
                 string bigGif = "x";
                 int playerPoints = 0;
@@ -1748,15 +1850,15 @@ namespace SharpTimer
                             switch (dbType)
                             {
                                 case DatabaseType.MySQL:
-                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new MySqlCommand(upsertQuery, (MySqlConnection)connection);
                                     break;
                                 case DatabaseType.PostgreSQL:
                                     upsertQuery = $@"
                                                     INSERT INTO ""{PlayerStatsTable}"" 
-                                                    (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""HideJS"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"")
+                                                    (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"")
                                                     VALUES 
-                                                    (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)
+                                                    (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)
                                                     ON CONFLICT (""SteamID"")
                                                     DO UPDATE SET
                                                     ""PlayerName"" = EXCLUDED.""PlayerName"",
@@ -1764,7 +1866,6 @@ namespace SharpTimer
                                                     ""LastConnected"" = EXCLUDED.""LastConnected"",
                                                     ""HideTimerHud"" = EXCLUDED.""HideTimerHud"",
                                                     ""HideKeys"" = EXCLUDED.""HideKeys"",
-                                                    ""HideJS"" = EXCLUDED.""HideJS"",
                                                     ""SoundsEnabled"" = EXCLUDED.""SoundsEnabled"",
                                                     ""PlayerFov"" = EXCLUDED.""PlayerFov"",
                                                     ""IsVip"" = EXCLUDED.""IsVip"",
@@ -1776,7 +1877,7 @@ namespace SharpTimer
                                     upsertCommand = new NpgsqlCommand(upsertQuery, (NpgsqlConnection)connection);
                                     break;
                                 case DatabaseType.SQLite:
-                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new SQLiteCommand(upsertQuery, (SQLiteConnection)connection);
                                     break;
                                 default:
@@ -1787,19 +1888,18 @@ namespace SharpTimer
 
                             using (upsertCommand)
                             {
-                                if (playerTimers.TryGetValue(playerSlot, out PlayerTimerInfo? value) || playerSlot == -1)
+                                if (playerTimers.TryGetValue(slot, out PlayerTimerInfo? value) || slot == -1)
                                 {
                                     upsertCommand!.AddParameterWithValue("@PlayerName", playerName);
                                     upsertCommand!.AddParameterWithValue("@SteamID", steamId);
                                     upsertCommand!.AddParameterWithValue("@TimesConnected", timesConnected);
                                     upsertCommand!.AddParameterWithValue("@LastConnected", lastConnected);
-                                    upsertCommand!.AddParameterWithValue("@HideTimerHud", playerSlot != -1 && value!.HideTimerHud);
-                                    upsertCommand!.AddParameterWithValue("@HideKeys", playerSlot != -1 && value!.HideKeys);
-                                    upsertCommand!.AddParameterWithValue("@HideWeapon", playerSlot != -1 && value!.HideWeapon);
-                                    upsertCommand!.AddParameterWithValue("@HidePlayers", playerSlot != -1 && value!.HidePlayers);
-                                    upsertCommand!.AddParameterWithValue("@HideJS", playerSlot != -1 && value!.HideJumpStats);
-                                    upsertCommand!.AddParameterWithValue("@SoundsEnabled", playerSlot != -1 && value!.SoundsEnabled);
-                                    upsertCommand!.AddParameterWithValue("@PlayerFov", playerSlot == -1 ? 0 : value!.PlayerFov);
+                                    upsertCommand!.AddParameterWithValue("@HideTimerHud", slot != -1 && value!.HideTimerHud);
+                                    upsertCommand!.AddParameterWithValue("@HideKeys", slot != -1 && value!.HideKeys);
+                                    upsertCommand!.AddParameterWithValue("@HideWeapon", slot != -1 && value!.HideWeapon);
+                                    upsertCommand!.AddParameterWithValue("@HidePlayers", slot != -1 && value!.HidePlayers);
+                                    upsertCommand!.AddParameterWithValue("@SoundsEnabled", slot != -1 && value!.SoundsEnabled);
+                                    upsertCommand!.AddParameterWithValue("@PlayerFov", slot == -1 ? 0 : value!.PlayerFov);
                                     upsertCommand!.AddParameterWithValue("@IsVip", isVip);
                                     upsertCommand!.AddParameterWithValue("@BigGifID", bigGif);
                                     upsertCommand!.AddParameterWithValue("@GlobalPoints", newPoints);
@@ -1807,18 +1907,18 @@ namespace SharpTimer
                                     await upsertCommand!.ExecuteNonQueryAsync();
 
                                     if (!import) Server.NextFrame(() => GainPointsMessage(playerName, newPoints, playerPoints));
-                                    Server.NextFrame(() => SharpTimerDebug($"Set points in database for {playerName} from {playerPoints} to {newPoints}"));
+                                    Server.NextFrame(() => Utils.LogDebug($"Set points in database for {playerName} from {playerPoints} to {newPoints}"));
                                 }
                                 else
                                 {
-                                    SharpTimerError($"Error setting player points to database for {playerName}: player was not on the server anymore");
+                                    Utils.LogError($"Error setting player points to database for {playerName}: player was not on the server anymore");
                                 }
                             }
 
                         }
                         else
                         {
-                            Server.NextFrame(() => SharpTimerDebug($"No player stats yet"));
+                            Server.NextFrame(() => Utils.LogDebug($"No player stats yet"));
 
                             int newPoints = await CalculatePlayerPoints(steamId, playerName, timerTicks, oldTicks, beatPB, bonusX, style, completions, mapname, false) + playerPoints;
 
@@ -1829,15 +1929,15 @@ namespace SharpTimer
                             switch (dbType)
                             {
                                 case DatabaseType.MySQL:
-                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new MySqlCommand(upsertQuery, (MySqlConnection)connection);
                                     break;
                                 case DatabaseType.PostgreSQL:
-                                    upsertQuery = $@"INSERT INTO ""{PlayerStatsTable}"" (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""HideJS"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"") VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"INSERT INTO ""{PlayerStatsTable}"" (""PlayerName"", ""SteamID"", ""TimesConnected"", ""LastConnected"", ""HideTimerHud"", ""HideKeys"", ""SoundsEnabled"", ""PlayerFov"", ""IsVip"", ""BigGifID"", ""GlobalPoints"", ""HideWeapon"", ""HidePlayers"") VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new NpgsqlCommand(upsertQuery, (NpgsqlConnection)connection);
                                     break;
                                 case DatabaseType.SQLite:
-                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, HideJS, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @HideJS, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
+                                    upsertQuery = $@"REPLACE INTO {PlayerStatsTable} (PlayerName, SteamID, TimesConnected, LastConnected, HideTimerHud, HideKeys, SoundsEnabled, PlayerFov, IsVip, BigGifID, GlobalPoints, HideWeapon, HidePlayers) VALUES (@PlayerName, @SteamID, @TimesConnected, @LastConnected, @HideTimerHud, @HideKeys, @SoundsEnabled, @PlayerFov, @IsVip, @BigGifID, @GlobalPoints, @HideWeapon, @HidePlayers)";
                                     upsertCommand = new SQLiteCommand(upsertQuery, (SQLiteConnection)connection);
                                     break;
                                 default:
@@ -1848,19 +1948,18 @@ namespace SharpTimer
 
                             using (upsertCommand)
                             {
-                                if (playerTimers.TryGetValue(playerSlot, out PlayerTimerInfo? value) || playerSlot == -1)
+                                if (playerTimers.TryGetValue(slot, out PlayerTimerInfo? value) || slot == -1)
                                 {
                                     upsertCommand!.AddParameterWithValue("@PlayerName", playerName);
                                     upsertCommand!.AddParameterWithValue("@SteamID", steamId);
                                     upsertCommand!.AddParameterWithValue("@TimesConnected", 1);
                                     upsertCommand!.AddParameterWithValue("@LastConnected", timeNowUnix);
-                                    upsertCommand!.AddParameterWithValue("@HideTimerHud", playerSlot != -1 && value!.HideTimerHud);
-                                    upsertCommand!.AddParameterWithValue("@HideKeys", playerSlot != -1 && value!.HideKeys);
-                                    upsertCommand!.AddParameterWithValue("@HideWeapon", playerSlot != -1 && value!.HideWeapon);
-                                    upsertCommand!.AddParameterWithValue("@HidePlayers", playerSlot != -1 && value!.HidePlayers);
-                                    upsertCommand!.AddParameterWithValue("@HideJS", playerSlot != -1 && value!.HideJumpStats);
-                                    upsertCommand!.AddParameterWithValue("@SoundsEnabled", playerSlot != -1 && value!.SoundsEnabled);
-                                    upsertCommand!.AddParameterWithValue("@PlayerFov", playerSlot == -1 ? 0 : value!.PlayerFov);
+                                    upsertCommand!.AddParameterWithValue("@HideTimerHud", slot != -1 && value!.HideTimerHud);
+                                    upsertCommand!.AddParameterWithValue("@HideKeys", slot != -1 && value!.HideKeys);
+                                    upsertCommand!.AddParameterWithValue("@HideWeapon", slot != -1 && value!.HideWeapon);
+                                    upsertCommand!.AddParameterWithValue("@HidePlayers", slot != -1 && value!.HidePlayers);
+                                    upsertCommand!.AddParameterWithValue("@SoundsEnabled", slot != -1 && value!.SoundsEnabled);
+                                    upsertCommand!.AddParameterWithValue("@PlayerFov", slot == -1 ? 0 : value!.PlayerFov);
                                     upsertCommand!.AddParameterWithValue("@IsVip", false);
                                     upsertCommand!.AddParameterWithValue("@BigGifID", "x");
                                     upsertCommand!.AddParameterWithValue("@GlobalPoints", newPoints);
@@ -1868,11 +1967,11 @@ namespace SharpTimer
                                     await upsertCommand!.ExecuteNonQueryAsync();
 
                                     if (!import) Server.NextFrame(() => GainPointsMessage(playerName, newPoints, playerPoints));
-                                    Server.NextFrame(() => SharpTimerDebug($"Set points in database for {playerName} from {playerPoints} to {newPoints}"));
+                                    Server.NextFrame(() => Utils.LogDebug($"Set points in database for {playerName} from {playerPoints} to {newPoints}"));
                                 }
                                 else
                                 {
-                                    SharpTimerError($"Error setting player points to database for {playerName}: player was not on the server anymore");
+                                    Utils.LogError($"Error setting player points to database for {playerName}: player was not on the server anymore");
                                 }
                             }
                         }
@@ -1881,13 +1980,13 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error getting player stats from database for {playerName}: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"Error getting player stats from database for {playerName}: {ex}"));
             }
         }
 
         public async Task<int> CalculatePlayerPoints(string steamId, string playerName, int timerTicks, int oldTicks, bool beatPB = false, int bonusX = 0, int style = 0, int completions = 0, string mapname = "", bool forGlobal = false)
         {
-            SharpTimerDebug($"Trying to calculate player points for {playerName}");
+            Utils.LogDebug($"Trying to calculate player points for {playerName}");
             try
             {
                 if (mapname == "") mapname = currentMapName!;
@@ -1912,7 +2011,7 @@ namespace SharpTimer
                 if (sortedRecords.Count == 0)
                 {
                     newPoints += CalculateTop10(maxPoints, rank, forGlobal);
-                    SharpTimerDebug($"First map entry, player {playerName} is rank #1");
+                    Utils.LogDebug($"First map entry, player {playerName} is rank #1");
                     isTop10 = true;
                 }
                 else
@@ -1923,7 +2022,7 @@ namespace SharpTimer
                         {
                             newPoints += CalculateTop10(maxPoints, rank);
                             isTop10 = true;
-                            SharpTimerDebug($"Player {playerName} is rank #{rank}");
+                            Utils.LogDebug($"Player {playerName} is rank #{rank}");
                             break;
                         }
                         rank++;
@@ -1974,7 +2073,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error calculating player points for {playerName}: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"Error calculating player points for {playerName}: {ex}"));
             }
             return 0;
         }
@@ -1983,7 +2082,7 @@ namespace SharpTimer
         {
             try
             {
-                //if ((bonusX == 0 && !playerTimers[playerSlot].IsTimerRunning) || (bonusX != 0 && !playerTimers[playerSlot].IsBonusTimerRunning)) return;
+                //if ((bonusX == 0 && !playerTimers[slot].IsTimerRunning) || (bonusX != 0 && !playerTimers[slot].IsBonusTimerRunning)) return;
                 string currentMapNamee = bonusX == 0 ? currentMapName! : $"{currentMapName}_bonus{bonusX}";
 
                 using (var connection = await OpenConnectionAsync())
@@ -2026,7 +2125,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error getting player completions from database for id:{steamId}: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"Error getting player completions from database for id:{steamId}: {ex}"));
             }
             return 0;
         }
@@ -2067,7 +2166,7 @@ namespace SharpTimer
                             {
                                 Server.NextFrame(() =>
                                 {
-                                    if (IsAllowedClient(player)) PrintToChat(player, Localizer["top_10_points"]);
+                                    if (IsPlayerOrSpectator(player)) Utils.PrintToChat(player, Localizer["top_10_points"]);
                                 });
 
                                 int rank = 0;
@@ -2082,7 +2181,7 @@ namespace SharpTimer
                                         int currentRank = ++rank;
                                         Server.NextFrame(() =>
                                         {
-                                            if (IsAllowedClient(player)) PrintToChat(player, Localizer["top_10_points_list", currentRank, playerName, points]);
+                                            if (IsPlayerOrSpectator(player)) Utils.PrintToChat(player, Localizer["top_10_points_list", currentRank, playerName, points]);
                                         });
                                     }
                                 }
@@ -2091,24 +2190,24 @@ namespace SharpTimer
                     }
                     catch (Exception ex)
                     {
-                        Server.NextFrame(() => SharpTimerError($"An error occurred in PrintTop10PlayerPoints inside using con: {ex}"));
+                        Server.NextFrame(() => Utils.LogError($"An error occurred in PrintTop10PlayerPoints inside using con: {ex}"));
                     }
                 }
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"An error occurred in PrintTop10PlayerPoints: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"An error occurred in PrintTop10PlayerPoints: {ex}"));
             }
         }
 
-        public async Task GetReplayVIPGif(string steamId, int playerSlot)
+        public async Task GetReplayVIPGif(string steamId, int slot)
         {
-            Server.NextFrame(() => SharpTimerDebug($"Trying to get replay VIP Gif from database"));
+            Server.NextFrame(() => Utils.LogDebug($"Trying to get replay VIP Gif from database"));
             try
             {
                 if (await IsSteamIDaTester(steamId))
                 {
-                    playerTimers[playerSlot].VipReplayGif = await GetTesterBigGif(steamId);
+                    playerTimers[slot].VipReplayGif = await GetTesterBigGif(steamId);
                     return;
                 }
 
@@ -2143,7 +2242,7 @@ namespace SharpTimer
 
                         var row = await selectCommand!.ExecuteReaderAsync();
 
-                        if (row.Read() && playerTimers.TryGetValue(playerSlot, out PlayerTimerInfo? value))
+                        if (row.Read() && playerTimers.TryGetValue(slot, out PlayerTimerInfo? value))
                         {
                             // get player columns
                             bool isVip = false;
@@ -2159,12 +2258,12 @@ namespace SharpTimer
                             }
                             if (isVip)
                             {
-                                Server.NextFrame(() => SharpTimerDebug($"Replay is VIP setting gif..."));
+                                Server.NextFrame(() => Utils.LogDebug($"Replay is VIP setting gif..."));
                                 value.VipReplayGif = $"<br><img src='https://files.catbox.moe/{row.GetString("BigGifID")}.gif'><br>";
                             }
                             else
                             {
-                                Server.NextFrame(() => SharpTimerDebug($"Replay is not VIP..."));
+                                Server.NextFrame(() => Utils.LogDebug($"Replay is not VIP..."));
                                 value.VipReplayGif = "x";
                             }
 
@@ -2173,7 +2272,7 @@ namespace SharpTimer
                         else
                         {
                             await row.CloseAsync();
-                            Server.NextFrame(() => SharpTimerDebug($"Replay is not VIP... goofy"));
+                            Server.NextFrame(() => Utils.LogDebug($"Replay is not VIP... goofy"));
                         }
 
                     }
@@ -2181,13 +2280,13 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error getting ReplayVIPGif from database: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"Error getting ReplayVIPGif from database: {ex}"));
             }
         }
 
         public async Task<(string, string, string)> GetMapRecordSteamIDFromDatabase(int bonusX = 0, int top10 = 0, int style = 0)
         {
-            SharpTimerDebug($"Trying to get {(bonusX != 0 ? $"bonus {bonusX}" : "map")} record steamid from database");
+            Utils.LogDebug($"Trying to get {(bonusX != 0 ? $"bonus {bonusX}" : "map")} record steamid from database");
             try
             {
                 using (IDbConnection connection = await OpenConnectionAsync())
@@ -2270,7 +2369,7 @@ namespace SharpTimer
                         {
                             string steamId64 = row.GetString("SteamID");
                             string playerName = row.GetString("PlayerName");
-                            string timerTicks = FormatTime(row.GetInt32("TimerTicks"));
+                            string timerTicks = Utils.FormatTime(row.GetInt32("TimerTicks"));
 
 
                             await row.CloseAsync();
@@ -2288,13 +2387,13 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error getting GetMapRecordSteamIDFromDatabase from database: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"Error getting GetMapRecordSteamIDFromDatabase from database: {ex}"));
                 return ("null", "null", "null");
             }
         }
         public async Task<(string, string, string)> GetStageRecordSteamIDFromDatabase(int stage, int bonusX = 0, int top10 = 0)
         {
-            SharpTimerDebug($"Trying to get {(bonusX != 0 ? $"bonus {bonusX} stage {stage}" : $"stage {stage}")} record steamid from database");
+            Utils.LogDebug($"Trying to get {(bonusX != 0 ? $"bonus {bonusX} stage {stage}" : $"stage {stage}")} record steamid from database");
             try
             {
                 using (IDbConnection connection = await OpenConnectionAsync())
@@ -2376,8 +2475,7 @@ namespace SharpTimer
                         {
                             string steamId64 = row.GetString("SteamID");
                             string playerName = row.GetString("PlayerName");
-                            string timerTicks = FormatTime(row.GetInt32("TimerTicks"));
-
+                            string timerTicks = Utils.FormatTime(row.GetInt32("TimerTicks"));
 
                             await row.CloseAsync();
 
@@ -2394,14 +2492,14 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error getting GetStageRecordSteamIDFromDatabase from database: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"Error getting GetStageRecordSteamIDFromDatabase from database: {ex}"));
                 return ("null", "null", "null");
             }
         }
 
         public async Task<(int, string)> GetStageRecordFromDatabase(int stage, string steamId, int bonusX = 0)
         {
-            SharpTimerDebug($"Trying to get {(bonusX != 0 ? $"bonus {bonusX} stage {stage}" : $"stage {stage}")} record steamid from database");
+            Utils.LogDebug($"Trying to get {(bonusX != 0 ? $"bonus {bonusX} stage {stage}" : $"stage {stage}")} record steamid from database");
             try
             {
                 using (IDbConnection connection = await OpenConnectionAsync())
@@ -2478,14 +2576,14 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => SharpTimerError($"Error getting GetStageRecord from database: {ex}"));
+                Server.NextFrame(() => Utils.LogError($"Error getting GetStageRecord from database: {ex}"));
                 return (0, "null");
             }
         }
 
         public async Task<int> GetPreviousPlayerRecordFromDatabase(string steamId, string currentMapName, string playerName, int bonusX = 0, int style = 0)
         {
-            SharpTimerDebug($"Trying to get Previous {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} from database for {playerName}");
+            Utils.LogDebug($"Trying to get Previous {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} from database for {playerName}");
             try
             {
                 string currentMapNamee = bonusX == 0 ? currentMapName : $"{currentMapName}_bonus{bonusX}";
@@ -2528,7 +2626,7 @@ namespace SharpTimer
                         // Check for DBNull
                         if (result != null && result != DBNull.Value)
                         {
-                            SharpTimerDebug($"Got Previous Time from database for {playerName}");
+                            Utils.LogDebug($"Got Previous Time from database for {playerName}");
                             return Convert.ToInt32(result);
                         }
                     }
@@ -2537,17 +2635,17 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                SharpTimerError($"Error getting previous player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} from database: {ex.Message}");
+                Utils.LogError($"Error getting previous player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} from database: {ex.Message}");
             }
 
             return 0;
         }
         public async Task<int> GetPreviousPlayerStageRecordFromDatabase(CCSPlayerController? player, string steamId, string currentMapName, int stage, string playerName, int bonusX = 0)
         {
-            SharpTimerDebug($"Trying to get Previous {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"stage {stage} time")} from database for {playerName}");
+            Utils.LogDebug($"Trying to get Previous {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"stage {stage} time")} from database for {playerName}");
             try
             {
-                if (!IsAllowedClient(player))
+                if (!IsPlayerOrSpectator(player))
                 {
                     return 0;
                 }
@@ -2591,7 +2689,7 @@ namespace SharpTimer
                         // Check for DBNull
                         if (result != null && result != DBNull.Value)
                         {
-                            SharpTimerDebug($"Got Previous stage {stage} Time from database for {playerName}");
+                            Utils.LogDebug($"Got Previous stage {stage} Time from database for {playerName}");
                             return Convert.ToInt32(result);
                         }
                     }
@@ -2600,7 +2698,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                SharpTimerError($"Error getting previous player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"stage {stage} time")} from database: {ex.Message}");
+                Utils.LogError($"Error getting previous player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"stage {stage} time")} from database: {ex.Message}");
             }
 
             return 0;
@@ -2608,11 +2706,17 @@ namespace SharpTimer
 
         public async Task<int> GetPlayerPointsFromDatabase(string steamId, string? playerName = null)
         {
-            SharpTimerDebug("Trying GetPlayerPointsFromDatabase");
+            Utils.LogDebug("Trying GetPlayerPointsFromDatabase");
             int playerPoints = 0;
 
             try
             {
+
+                if (!IsPlayerOrSpectator(player))
+                {
+                    return playerPoints;
+                }
+
                 using (var connection = await OpenConnectionAsync())
                 {
                     await CreatePlayerStatsTableAsync(connection);
@@ -2648,7 +2752,7 @@ namespace SharpTimer
                         if (result != null && result != DBNull.Value)
                         {
                             playerPoints = Convert.ToInt32(result);
-                            SharpTimerDebug($"Got Player Points from database for {playerName} p: {playerPoints}");
+                            Utils.LogDebug($"Got Player Points from database for {playerName} p: {playerPoints}");
                             return playerPoints;
                         }
                     }
@@ -2657,14 +2761,14 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                SharpTimerError($"Error getting player points from database: {ex.Message}");
+                Utils.LogError($"Error getting player points from database: {ex.Message}");
             }
             return playerPoints;
         }
 
         public async Task<Dictionary<int, PlayerRecord>> GetSortedRecordsFromDatabase(int limit = 0, int bonusX = 0, string mapName = "", int style = 0)
         {
-            SharpTimerDebug($"Trying GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
+            Utils.LogDebug($"Trying GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
             using (var connection = await OpenConnectionAsync())
             {
                 try
@@ -2750,7 +2854,7 @@ namespace SharpTimer
                             sortedRecords = sortedRecords.OrderBy(record => record.Value.TimerTicks)
                                                         .ToDictionary(record => record.Key, record => record.Value);
 
-                            SharpTimerDebug($"Got GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
+                            Utils.LogDebug($"Got GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
 
                             return sortedRecords;
                         }
@@ -2758,14 +2862,14 @@ namespace SharpTimer
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error getting sorted records from database: {ex.Message}");
+                    Utils.LogError($"Error getting sorted records from database: {ex.Message}");
                 }
             }
             return [];
         }
         public async Task<List<PlayerRecord>> GetAllSortedRecordsFromDatabase(int limit = 0, int bonusX = 0, int style = 0)
         {
-            SharpTimerDebug($"Trying GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
+            Utils.LogDebug($"Trying GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
             using (var connection = await OpenConnectionAsync())
             {
                 try
@@ -2850,7 +2954,7 @@ namespace SharpTimer
                                                .OrderBy(record => record.TimerTicks)
                                                .ToList();
 
-                            SharpTimerDebug($"Got GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
+                            Utils.LogDebug($"Got GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
 
                             return sortedList;
                         }
@@ -2858,14 +2962,14 @@ namespace SharpTimer
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error getting all sorted records from database: {ex.Message}");
+                    Utils.LogError($"Error getting all sorted records from database: {ex.Message}");
                 }
             }
             return [];
         }
         public async Task<Dictionary<string, PlayerRecord>> GetSortedStageRecordsFromDatabase(int stage, int limit = 0, int bonusX = 0, string mapName = "")
         {
-            SharpTimerDebug($"Trying GetSortedStageRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
+            Utils.LogDebug($"Trying GetSortedStageRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
             using (var connection = await OpenConnectionAsync())
             {
                 try
@@ -2948,7 +3052,7 @@ namespace SharpTimer
                             sortedRecords = sortedRecords.OrderBy(record => record.Value.TimerTicks)
                                                         .ToDictionary(record => record.Key, record => record.Value);
 
-                            SharpTimerDebug($"Got GetSortedStageRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
+                            Utils.LogDebug($"Got GetSortedStageRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
 
                             return sortedRecords;
                         }
@@ -2956,7 +3060,7 @@ namespace SharpTimer
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error getting sorted stage records from database: {ex.Message}");
+                    Utils.LogError($"Error getting sorted stage records from database: {ex.Message}");
                 }
             }
             return [];
@@ -2964,7 +3068,7 @@ namespace SharpTimer
 
         public async Task<Dictionary<string, PlayerPoints>> GetSortedPointsFromDatabase()
         {
-            SharpTimerDebug("Trying GetSortedPoints from database");
+            Utils.LogDebug("Trying GetSortedPoints from database");
             using (var connection = await OpenConnectionAsync())
             {
                 try
@@ -3024,7 +3128,7 @@ namespace SharpTimer
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error getting GetSortedPoints from database: {ex.Message}");
+                    Utils.LogError($"Error getting GetSortedPoints from database: {ex.Message}");
                 }
             }
             return [];
@@ -3042,7 +3146,7 @@ namespace SharpTimer
         {
             try
             {
-                Server.NextFrame(() => PrintToChatAll("Points import initialized"));
+                Server.NextFrame(() => Utils.PrintToChatAll("Points import initialized"));
                 var sortedRecords = await GetAllSortedRecordsFromDatabase();
                 
                 int batchSize = 10;
@@ -3053,11 +3157,11 @@ namespace SharpTimer
 
                     await Task.WhenAll(tasks);
                 }
-                Server.NextFrame(() => PrintToChatAll("Points import completed"));
+                Server.NextFrame(() => Utils.PrintToChatAll("Points import completed"));
             }
             catch (Exception ex)
             {
-                SharpTimerError($"Error ImportPlayerPoints to the database: {ex.Message}");
+                Utils.LogError($"Error ImportPlayerPoints to the database: {ex.Message}");
             }
         }
 
@@ -3104,7 +3208,7 @@ namespace SharpTimer
                 }
                 catch (Exception ex)
                 {
-                    SharpTimerError($"Error in ResetPlayerPoints: {ex.Message}");
+                    Utils.LogError($"Error in ResetPlayerPoints: {ex.Message}");
                 }
             }
         }
@@ -3126,7 +3230,7 @@ namespace SharpTimer
 
                 if (!Directory.Exists(playerRecordsPathh))
                 {
-                    SharpTimerDebug($"Error: Directory not found at {playerRecordsPathh}");
+                    Utils.LogDebug($"Error: Directory not found at {playerRecordsPathh}");
                     return;
                 }
 
@@ -3144,7 +3248,7 @@ namespace SharpTimer
                         connection = new SQLiteConnection(connectionString);
                         break;
                     default:
-                        SharpTimerError($"Error: Invalid database type.");
+                        Utils.LogError($"Error: Invalid database type.");
                         return;
                 }
                 using (connection)
@@ -3217,7 +3321,7 @@ namespace SharpTimer
 
                         if (records == null)
                         {
-                            SharpTimerDebug($"Error: Failed to deserialize JSON data from {filePath}");
+                            Utils.LogDebug($"Error: Failed to deserialize JSON data from {filePath}");
                             continue;
                         }
 
@@ -3268,7 +3372,7 @@ namespace SharpTimer
                                 insertOrUpdateCommand!.AddParameterWithValue("@SteamID", steamId);
                                 insertOrUpdateCommand!.AddParameterWithValue("@PlayerName", playerRecord.PlayerName!);
                                 insertOrUpdateCommand!.AddParameterWithValue("@TimerTicks", playerRecord.TimerTicks);
-                                insertOrUpdateCommand!.AddParameterWithValue("@FormattedTime", FormatTime(playerRecord.TimerTicks));
+                                insertOrUpdateCommand!.AddParameterWithValue("@FormattedTime", Utils.FormatTime(playerRecord.TimerTicks));
                                 insertOrUpdateCommand!.AddParameterWithValue("@MapName", mapName);
                                 insertOrUpdateCommand!.AddParameterWithValue("@UnixStamp", 0);
                                 insertOrUpdateCommand!.AddParameterWithValue("@TimesFinished", 0);
@@ -3279,13 +3383,13 @@ namespace SharpTimer
                             }
                         }
 
-                        SharpTimerDebug($"JSON times from {Path.GetFileName(filePath)} successfully added to the database.");
+                        Utils.LogDebug($"JSON times from {Path.GetFileName(filePath)} successfully added to the database.");
                     }
                 }
             }
             catch (Exception ex)
             {
-                SharpTimerError($"Error adding JSON times to the database: {ex.Message}");
+                Utils.LogError($"Error adding JSON times to the database: {ex.Message}");
             }
         }
 

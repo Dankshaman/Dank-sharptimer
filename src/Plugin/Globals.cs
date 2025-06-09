@@ -17,8 +17,11 @@ using System.Globalization;
 using System.Text.Json;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
-using CounterStrikeSharp.API.Modules.Utils;
-using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
+using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
+using TagsApi;
+using FixVectorLeak;
+using CounterStrikeSharp.API.Core.Capabilities;
+using SharpTimerAPI;
 
 namespace SharpTimer
 {
@@ -30,26 +33,39 @@ namespace SharpTimer
 
     public partial class SharpTimer
     {
-        public string compileTimeStamp = new DateTime(CompileTimeStamp.CompileTime, DateTimeKind.Utc).ToString();
-
         public override string ModuleName => "SharpTimer";
-        public override string ModuleVersion => $"0.3.1w";
-        public override string ModuleAuthor => "dea https://github.com/deabb/";
+        public override string ModuleVersion => $"0.3.1y";
+        public override string ModuleAuthor => "dea + sharptimer team & community";
         public override string ModuleDescription => "A CS2 Timer Plugin";
 
+        public static SharpTimer Instance = new();
+
+        public Utils Utils = null!;
+        public RemoveDamage RemoveDamage = null!;
+
+        public static PluginCapability<ISharpTimerEventSender> StEventSenderCapability { get; } = new("sharptimer:event_sender");
+        public static PluginCapability<ISharpTimerManager> StManagerCapability { get; } = new("sharptimer:manager");
+        public static PluginCapability<ISharpTimerDatabase> StDatabaseCapability { get; } = new("sharptimer:database");
+
+        public ITagApi? TagApi { get; set; }
+
+        public IRunCommand? RunCommand;
+        private static readonly MemoryFunctionVoid<CCSPlayerPawn, CSPlayerState> StateTransition = new(GameData.GetSignature("StateTransition"));
+        private readonly INetworkServerService networkServerService = new();
+        private int movementServices;
+        private int movementPtr;
+        private readonly CSPlayerState[] _oldPlayerState = new CSPlayerState[65];
+
         public Dictionary<int, PlayerTimerInfo> playerTimers = [];
-        private Dictionary<int, PlayerJumpStats> playerJumpStats = [];
         private Dictionary<int, PlayerReplays> playerReplays = [];
         private Dictionary<int, List<PlayerCheckpoint>> playerCheckpoints = [];
         public Dictionary<int, CCSPlayerController> connectedPlayers = [];
         public Dictionary<int, CCSPlayerController> connectedAFKPlayers = [];
-        private Dictionary<int, CCSPlayerController> connectedReplayBots = [];
         private Dictionary<uint, CCSPlayerController> specTargets = [];
-        private EntityCache? entityCache;
+        private EntityCache entityCache = new();
         public Dictionary<int, PlayerRecord>? SortedCachedRecords = [];
-        private static readonly HttpClient httpClient = new();
-
-        public static JsonSerializerOptions jsonSerializerOptions = new()
+        public readonly HttpClient httpClient = new();
+        public JsonSerializerOptions jsonSerializerOptions = new()
         {
             WriteIndented = true,
             PropertyNameCaseInsensitive = true,
@@ -67,18 +83,18 @@ namespace SharpTimer
         public bool beamColorOverride = false;
 
         private bool useStageTriggers = false;
-        public Vector? currentMapStartTriggerMins = null;
-        public Vector? currentMapStartTriggerMaxs = null;
+        public Vector_t? currentMapStartTriggerMins;
+        public Vector_t? currentMapStartTriggerMaxs;
 
-        public Vector? currentRespawnPos = null;
-        public QAngle? currentRespawnAng = null;
+        public Vector_t? currentRespawnPos;
+        public QAngle_t? currentRespawnAng;
         public string currentMapStartTrigger = "trigger_startzone";
         public string currentMapEndTrigger = "trigger_endzone";
-        public Vector currentMapStartC1 = new(0, 0, 0);
-        public Vector currentMapStartC2 = new(0, 0, 0);
-        public Vector currentMapEndC1 = new(0, 0, 0);
-        public Vector currentMapEndC2 = new(0, 0, 0);
-        public Vector? currentEndPos = null;
+        public Vector_t currentMapStartC1 = new(0, 0, 0);
+        public Vector_t currentMapStartC2 = new(0, 0, 0);
+        public Vector_t currentMapEndC1 = new(0, 0, 0);
+        public Vector_t currentMapEndC2 = new(0, 0, 0);
+        public Vector_t? currentEndPos;
 
         private Dictionary<nint, int> cpTriggers = [];
         public int cpTriggerCount;
@@ -86,17 +102,18 @@ namespace SharpTimer
         public bool useCheckpointVerification = true;
 
         public bool applyInfiniteAmmo = true;
+        public bool printStartSpeedEnabled = true;
         public bool useAnticheat = false;
 
-        private Dictionary<int, Vector?> bonusRespawnPoses = [];
-        private Dictionary<int, QAngle?> bonusRespawnAngs = [];
+        private Dictionary<int, Vector_t?> bonusRespawnPoses = [];
+        private Dictionary<int, QAngle_t?> bonusRespawnAngs = [];
         public string currentBonusStartTrigger = "b1_start";
         public string currentBonusEndTrigger = "b1_end";
-        public Vector[] currentBonusStartC1 = new Vector[10];
-        public Vector[] currentBonusStartC2 = new Vector[10];
-        public Vector[] currentBonusEndC1 = new Vector[10];
-        public Vector[] currentBonusEndC2 = new Vector[10];
-        public Vector[] currentBonusEndPos = new Vector[10];
+        public Vector_t[] currentBonusStartC1 = new Vector_t[10];
+        public Vector_t[] currentBonusStartC2 = new Vector_t[10];
+        public Vector_t[] currentBonusEndC1 = new Vector_t[10];
+        public Vector_t[] currentBonusEndC2 = new Vector_t[10];
+        public Vector_t[] currentBonusEndPos = new Vector_t[10];
 
         private Dictionary<nint, int> bonusCheckpointTriggers = [];
         private int bonusCheckpointTriggerCount;
@@ -109,8 +126,8 @@ namespace SharpTimer
         public bool currentMapOverrideStageRequirement = false;
 
         private Dictionary<nint, int> stageTriggers = [];
-        private Dictionary<int, Vector?> stageTriggerPoses = [];
-        private Dictionary<int, QAngle?> stageTriggerAngs = [];
+        private Dictionary<int, Vector_t?> stageTriggerPoses = [];
+        private Dictionary<int, QAngle_t?> stageTriggerAngs = [];
         public int stageTriggerCount;
 
         public string? currentMapType = null;
@@ -125,12 +142,12 @@ namespace SharpTimer
         public string dbPath = "";
         public bool enableDb = false;
         public bool enableStageTimes = true;
+        public bool enableStageSR = true;
         public bool ignoreJSON = false;
         public bool enableReplays = false;
         public bool onlySRReplay = false;
         public bool enableSRreplayBot = false;
-        public bool startKickingAllFuckingBotsExceptReplayOneIFuckingHateValveDogshitFuckingCompanySmile = false;
-        public bool foundReplayBot = false;
+        public CCSPlayerController? replayBotController;
         public string replayBotName = "";
         public int maxReplayFrames = 19200;
         public string apiKey = "";
@@ -199,6 +216,7 @@ namespace SharpTimer
         public bool startzoneJumping = true;
         public bool spawnOnRespawnPos = false;
         public bool enableNoclip = false;
+        public bool enableRsOnLinear = false;
 
         public bool enableStyles = true;
         public bool enableStylePoints = true;
@@ -235,7 +253,7 @@ namespace SharpTimer
         public bool removeCrouchFatigueEnabled = true;
         public bool goToEnabled = false;
         public bool fovChangerEnabled = true;
-        public int cmdCooldown = 64;
+        public float cmdCooldown = 0.5f;
         public float fakeTriggerHeight = 50;
         public bool Box3DZones = false;
         public bool forcePlayerSpeedEnabled = false;
@@ -258,12 +276,6 @@ namespace SharpTimer
         public double parachutePointModifier = 0.8;
         public double tasPointModifier = 0.0;
 
-        public bool jumpStatsEnabled = false;
-        public float jumpStatsMinDist = 175;
-        public float jumpStatsMaxVert = 32;
-        public bool movementUnlockerCapEnabled = true;
-        public float movementUnlockerCapValue = 250;
-
         public bool execCustomMapCFG = false;
 
         public bool sqlCheck = false;
@@ -279,6 +291,7 @@ namespace SharpTimer
         public string strSound = "sounds/ui/panorama/round_report_round_won_01.vsnd";
         public bool srSoundAll = true;
         public bool stageSoundAll = true;
+        public bool soundeventsEnabled = false;
 
         public string? gameDir;
         public string? mySQLpath;
@@ -313,7 +326,6 @@ namespace SharpTimer
         public bool discordWebhookDisableStyleRecords = false;
 
         public string? remoteBhopDataSource = "https://raw.githubusercontent.com/Letaryat/poor-SharpTimer/main/remote_data/bhop_.json";
-        public string? remoteKZDataSource = "https://raw.githubusercontent.com/Letaryat/poor-SharpTimer/main/remote_data/kz_.json";
         public string? remoteSurfDataSource = "https://raw.githubusercontent.com/Letaryat/poor-SharpTimer/main/remote_data/surf_.json";
         public bool disableRemoteData = false;
         public string? testerPersonalGifsSource = "https://raw.githubusercontent.com/Dankshaman/Danktest/refs/heads/main/Data.json";
