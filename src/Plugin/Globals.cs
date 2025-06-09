@@ -282,6 +282,7 @@ namespace SharpTimer
         public string tpSound = "sounds/buttons/blip1.vsnd";
         public string pbSound = "sounds/buttons/bell1.vsnd";
         public string srSound = "sounds/ui/panorama/round_report_round_won_01.vsnd";
+        public string strSound = "sounds/ui/panorama/round_report_round_won_01.vsnd";
         public bool srSoundAll = true;
         public bool stageSoundAll = true;
         public bool soundeventsEnabled = false;
