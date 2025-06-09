@@ -35,6 +35,12 @@ public partial class SharpTimer : BasePlugin
     public int currentMapSRTicksForTrail = 0;
     public const int ReplayBeamSegmentLifetimeTicks = 64; // 1 second at 64 tick
 
+    public static readonly int[] VelocityThresholds = { 349, 699, 1049, 1399, 1749, 2099, 2449, 2799, 3149, 3499 };
+    public static readonly string[] HudHexColors = {
+       "#00FF00", "#32CD32", "#ADFF2F", "#FFFF00", "#FFD700", "#FFA500",
+       "#FF8C00", "#FF6347", "#FF4500", "#FF0000", "#DC143C"
+    };
+
     public override void Load(bool hotReload)
     {
         Instance = this;

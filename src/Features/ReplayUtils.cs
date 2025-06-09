@@ -144,15 +144,47 @@ namespace SharpTimer
                         // Create new beam segment if previous position exists
                         if (replayBotPreviousPosition != null)
                         {
-                            float speedMagnitude = currentBotCssSpeed.Length(); // Use CssVec for length
-                            string beamColorHex = "#00FF00";
-                            int[] velocityThresholds = { 349, 699, 1049, 1399, 1749, 2099, 2449, 2799, 3149, 3499 };
-                            string[] hudColors = { "#00FF00", "#32CD32", "#ADFF2F", "#FFFF00", "#FFD700", "#FFA500", "#FF8C00", "#FF6347", "#FF4500", "#FF0000", "#DC143C" };
-                            for (int c = 0; c < velocityThresholds.Length; c++)
-                            {
-                                if (speedMagnitude < velocityThresholds[c]) { beamColorHex = hudColors[c]; break; }
-                                if (c == velocityThresholds.Length - 1 && speedMagnitude >= velocityThresholds[c]) { beamColorHex = hudColors[hudColors.Length - 1]; break; }
+                            float speedMagnitude = currentBotCssSpeed.Length();
+                            string beamColorHex;
+                            System.Drawing.Color finalBeamColor;
+
+                            if (Utils == null) { // Changed _utils to Utils
+                                finalBeamColor = System.Drawing.Color.LimeGreen;
+                            } else {
+                                int[] velThresholds = SharpTimer.VelocityThresholds;
+                                string[] hexColors = SharpTimer.HudHexColors;
+
+                                // Default to the first color
+                                if (!Utils.TryParseHexColor(hexColors[0], out finalBeamColor)) {
+                                    finalBeamColor = System.Drawing.Color.LimeGreen;
+                                }
+
+                                if (speedMagnitude < velThresholds[0]) {
+                                    // Already handled by default assignment to hexColors[0]
+                                    // If TryParseHexColor failed for hexColors[0], finalBeamColor is LimeGreen.
+                                    // If it succeeded, finalBeamColor is hexColors[0]. This is fine.
+                                } else if (speedMagnitude >= velThresholds[velThresholds.Length - 1]) { // Speed is >= last threshold
+                                    // Use the last color in hexColors (index velThresholds.Length, which is hexColors.Length - 1)
+                                    if (!Utils.TryParseHexColor(hexColors[velThresholds.Length], out finalBeamColor))
+                                        finalBeamColor = System.Drawing.Color.Red; // Fallback
+                                } else {
+                                    for (int i = 0; i < velThresholds.Length - 1; i++) {
+                                        if (speedMagnitude >= velThresholds[i] && speedMagnitude < velThresholds[i+1]) {
+                                            System.Drawing.Color color1, color2;
+                                            if (!Utils.TryParseHexColor(hexColors[i], out color1)) // Color for current threshold
+                                                color1 = finalBeamColor; // Use current finalBeamColor as fallback if parsing fails
+                                            if (!Utils.TryParseHexColor(hexColors[i+1], out color2)) // Color for next threshold
+                                                color2 = color1; // Fallback to color1 if parsing fails
+
+                                            float factor = (speedMagnitude - velThresholds[i]) / (float)(velThresholds[i+1] - velThresholds[i]);
+                                            finalBeamColor = Utils.InterpolateColor(color1, color2, factor);
+                                            break;
+                                        }
+                                    }
+                                }
                             }
+                            beamColorHex = (Utils != null) ? Utils.ColorToHexString(finalBeamColor) : "#00FF00";
+
                             CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
                             if (beam != null) {
                                 try { beam.Render = System.Drawing.ColorTranslator.FromHtml(beamColorHex); }

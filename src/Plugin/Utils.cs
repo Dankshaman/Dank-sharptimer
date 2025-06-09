@@ -317,6 +317,39 @@ namespace SharpTimer
             return false;
         }
 
+        public bool TryParseHexColor(string hexString, out Color color)
+        {
+            color = Color.Transparent; // Default value
+            if (string.IsNullOrEmpty(hexString))
+                return false;
+
+            try
+            {
+                color = ColorTranslator.FromHtml(hexString);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // LogError($"Error parsing hex color string '{hexString}': {ex.Message}"); // Logging can be noisy, consider if needed
+                return false;
+            }
+        }
+
+        public Color InterpolateColor(Color color1, Color color2, float factor)
+        {
+            factor = Math.Max(0f, Math.Min(1f, factor)); // Clamp factor between 0 and 1
+
+            byte r = (byte)(color1.R * (1 - factor) + color2.R * factor);
+            byte g = (byte)(color1.G * (1 - factor) + color2.G * factor);
+            byte b = (byte)(color1.B * (1 - factor) + color2.B * factor);
+            return Color.FromArgb(255, r, g, b); // Ensure opaque color
+        }
+
+        public string ColorToHexString(Color color)
+        {
+            return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+        }
+
         private string ParseHexToSymbol(string hexColorCode)
         {
             Color color = ColorTranslator.FromHtml(hexColorCode);
