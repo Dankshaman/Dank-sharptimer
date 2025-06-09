@@ -76,6 +76,64 @@ namespace SharpTimer
             }
         }
 
+        public int ParseFormattedTimeToTicks(string timeString)
+        {
+            if (timeString == "null" || string.IsNullOrEmpty(timeString))
+            {
+                return 0;
+            }
+            if (float.TryParse(timeString, NumberStyles.Any, CultureInfo.InvariantCulture, out float directSeconds))
+            {
+                if (!timeString.Contains(":"))
+                {
+                    return (int)(directSeconds * 64.0);
+                }
+            }
+            if (!timeString.Contains(":"))
+            {
+                LogError($"ParseFormattedTimeToTicks: No colon and not a direct float: {timeString}, returning 0.");
+                return 0;
+            }
+            try
+            {
+                string[] timeComponents = timeString.Split(':');
+                float minutes = 0;
+                float seconds = 0;
+                if (timeComponents.Length == 2)
+                {
+                    if (!float.TryParse(timeComponents[0], NumberStyles.Any, CultureInfo.InvariantCulture, out minutes) ||
+                        !float.TryParse(timeComponents[1], NumberStyles.Any, CultureInfo.InvariantCulture, out seconds))
+                    {
+                        LogError($"ParseFormattedTimeToTicks: Failed to parse M/S from {timeString}");
+                        return 0;
+                    }
+                }
+                else if (timeComponents.Length == 3)
+                {
+                    if (!float.TryParse(timeComponents[0], NumberStyles.Any, CultureInfo.InvariantCulture, out float hours) ||
+                        !float.TryParse(timeComponents[1], NumberStyles.Any, CultureInfo.InvariantCulture, out minutes) ||
+                        !float.TryParse(timeComponents[2], NumberStyles.Any, CultureInfo.InvariantCulture, out seconds))
+                    {
+                        LogError($"ParseFormattedTimeToTicks: Failed to parse H/M/S from {timeString}");
+                        return 0;
+                    }
+                    minutes += hours * 60;
+                }
+                else
+                {
+                    LogError($"ParseFormattedTimeToTicks: Unsupported time format (parts count): {timeString}");
+                    return 0;
+                }
+                double totalSecondsValue = (double)minutes * 60 + seconds;
+                return (int)(totalSecondsValue * 64.0);
+            }
+            catch (Exception ex)
+            {
+                LogError($"Error parsing time string '{timeString}' to ticks: {ex.Message}");
+                return 0;
+            }
+        }
+
         public async void CheckForUpdate()
         {
             try

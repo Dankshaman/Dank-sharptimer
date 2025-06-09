@@ -20,11 +20,31 @@ using CounterStrikeSharp.API.Modules.Entities.Constants;
 using System.Text.Json;
 using FixVectorLeak;
 using CounterStrikeSharp.API.Modules.Timers;
+using System.Drawing;
+using System.Globalization;
 
 namespace SharpTimer
 {
     public partial class SharpTimer
     {
+        private static FixVectorLeak.Vector_t ConvertCssVectorToFixVec(CounterStrikeSharp.API.Modules.Utils.Vector cssVector)
+        {
+            return new FixVectorLeak.Vector_t(cssVector.X, cssVector.Y, cssVector.Z);
+        }
+
+        public void ClearReplayBotTrail()
+        {
+            if (Utils == null) { Console.WriteLine("[SharpTimer] ClearReplayBotTrail: Utils is null"); } //Changed _utils to Utils
+            else { Utils.LogDebug($"Clearing replay bot trail. Segments: {replayBotBeamSegments.Count}"); }
+            foreach (var segment in replayBotBeamSegments)
+            {
+                if (segment.BeamEntity != null && segment.BeamEntity.IsValid) { segment.BeamEntity.Remove(); }
+            }
+            replayBotBeamSegments.Clear();
+            replayBotPreviousPosition = null;
+            currentMapSRTicksForTrail = 0;
+        }
+
         private void ReplayUpdate(CCSPlayerController player, int timerTicks)
         {
             try
@@ -69,7 +89,97 @@ namespace SharpTimer
                 if (playerTimers.TryGetValue(player.Slot, out PlayerTimerInfo? value))
                 {
                     
-                    var replayFrame = playerReplays[player.Slot].replayFrames[plackbackTick];
+                    // var replayFrame = playerReplays[player.Slot].replayFrames[plackbackTick]; // Original line before replayInfo check - THIS IS THE LINE TO REMOVE
+
+                    // Check for replayInfo first
+                    if (!playerReplays.TryGetValue(player.Slot, out PlayerReplays? replayInfo) || replayInfo == null)
+                    {
+                        if (Utils != null) Utils.LogError($"Replay info not found for bot slot {player.Slot} in ReplayPlayback.");
+                        return;
+                    }
+
+                    // New check for replayFrames list and playbackTick bounds:
+                    if (replayInfo.replayFrames == null || plackbackTick < 0 || plackbackTick >= replayInfo.replayFrames.Count)
+                    {
+                        if (Utils != null) Utils.LogError($"Replay frames list is null or playbackTick ({plackbackTick}) is out of bounds for bot slot {player.Slot}. Frames count: {(replayInfo.replayFrames?.Count.ToString() ?? "null")}");
+                        return;
+                    }
+
+                    var replayFrame = replayInfo.replayFrames[plackbackTick]; // This line is now safer
+
+                    // The null checks for replayFrame.Position and replayFrame.Speed (added in the previous step) should follow this.
+                    if (replayFrame.Position == null || replayFrame.Speed == null)
+                    {
+                        if (Utils != null) Utils.LogError($"Replay frame at tick {plackbackTick} has null Position or Speed for bot slot {player.Slot}.");
+                        return;
+                    }
+
+                    // Teleport must happen before we manage the trail, so current/prev positions are correct for the frame
+                    player.PlayerPawn.Value!.Teleport(ReplayVector.ToVector(replayFrame.Position), ReplayQAngle.ToQAngle(replayFrame.Rotation!), ReplayVector.ToVector(replayFrame.Speed));
+
+                    if (player.IsBot && player == replayBotController)
+                    {
+                        if (replayBotBeamSegments.Count > 0)
+                        {
+                            for (int i = replayBotBeamSegments.Count - 1; i >= 0; i--)
+                            {
+                                var segment = replayBotBeamSegments[i];
+                                if (currentMapSRTicksForTrail > 0 && (Server.TickCount - segment.CreationTick) > currentMapSRTicksForTrail)
+                                {
+                                    if (segment.BeamEntity != null && segment.BeamEntity.IsValid) { segment.BeamEntity.Remove(); }
+                                    replayBotBeamSegments.RemoveAt(i);
+                                }
+                                // If currentMapSRTicksForTrail is 0, segments are not removed here, effectively lasting until cleared otherwise.
+                            }
+                        }
+
+                        // replayInfo is already checked and valid here
+                        // replayInfo is already checked and valid here
+                        // replayFrame is already checked and valid here
+
+                        var currentBotOriginCssVec = ReplayVector.ToVector(replayFrame.Position!); // Type: CounterStrikeSharp.API.Modules.Utils.Vector
+                        var currentBotCssSpeed = ReplayVector.ToVector(replayFrame.Speed!);     // Type: CounterStrikeSharp.API.Modules.Utils.Vector
+                        var currentBotOriginFixVec = ConvertCssVectorToFixVec(currentBotOriginCssVec); // Type: FixVectorLeak.Vector_t
+
+                        // Create new beam segment if previous position exists
+                        if (replayBotPreviousPosition != null)
+                        {
+                            float speedMagnitude = currentBotCssSpeed.Length(); // Use CssVec for length
+                            string beamColorHex = "#00FF00";
+                            int[] velocityThresholds = { 349, 699, 1049, 1399, 1749, 2099, 2449, 2799, 3149, 3499 };
+                            string[] hudColors = { "#00FF00", "#32CD32", "#ADFF2F", "#FFFF00", "#FFD700", "#FFA500", "#FF8C00", "#FF6347", "#FF4500", "#FF0000", "#DC143C" };
+                            for (int c = 0; c < velocityThresholds.Length; c++)
+                            {
+                                if (speedMagnitude < velocityThresholds[c]) { beamColorHex = hudColors[c]; break; }
+                                if (c == velocityThresholds.Length - 1 && speedMagnitude >= velocityThresholds[c]) { beamColorHex = hudColors[hudColors.Length - 1]; break; }
+                            }
+                            CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
+                            if (beam != null) {
+                                try { beam.Render = System.Drawing.ColorTranslator.FromHtml(beamColorHex); }
+                                catch { beam.Render = System.Drawing.Color.LimeGreen; } // Fallback color
+                                beam.Width = SharpTimer.ReplayBeamWidth;
+
+                                var prevFixVecActual = replayBotPreviousPosition.Value;
+                                var prevPosCssVec = new CounterStrikeSharp.API.Modules.Utils.Vector(prevFixVecActual.X, prevFixVecActual.Y, prevFixVecActual.Z);
+
+                                beam.Teleport(prevPosCssVec, new CounterStrikeSharp.API.Modules.Utils.QAngle(0,0,0), new CounterStrikeSharp.API.Modules.Utils.Vector(0,0,0));
+                                beam.EndPos.X = currentBotOriginCssVec.X; // Use CssVec for EndPos components
+                                beam.EndPos.Y = currentBotOriginCssVec.Y;
+                                beam.EndPos.Z = currentBotOriginCssVec.Z;
+                                beam.DispatchSpawn();
+                                BeamSegment newSegment = new BeamSegment(beam, Server.TickCount, prevFixVecActual, currentBotOriginFixVec); // Use FixVec for segment storage
+                                replayBotBeamSegments.Add(newSegment);
+                            }
+                        }
+                        // Update previous position for the next frame, unconditionally for the replay bot.
+                        replayBotPreviousPosition = currentBotOriginFixVec; // Store as FixVec
+
+                    }
+                    else if (player.IsBot && replayBotPreviousPosition != null) // If it's a bot but not the replayBotController, clear its previous position
+                    {
+                        replayBotPreviousPosition = null;
+                    }
+
 
                     if (((PlayerFlags)replayFrame.Flags & PlayerFlags.FL_ONGROUND) != 0)
                     {
@@ -89,7 +199,8 @@ namespace SharpTimer
                         value.MovementService!.DuckAmount = 0;
                     }
 
-                    player.PlayerPawn.Value!.Teleport(ReplayVector.ToVector(replayFrame.Position!), ReplayQAngle.ToQAngle(replayFrame.Rotation!), ReplayVector.ToVector(replayFrame.Speed!));
+                    // This was the old location of teleport, moved up before trail logic
+                    // player.PlayerPawn.Value!.Teleport(ReplayVector.ToVector(replayFrame.Position!), ReplayQAngle.ToQAngle(replayFrame.Rotation!), ReplayVector.ToVector(replayFrame.Speed!));
 
                     var replayButtons = $"{((replayFrame.Buttons & PlayerButtons.Moveleft) != 0 ? "A" : "_")} " +
                                         $"{((replayFrame.Buttons & PlayerButtons.Forward) != 0 ? "W" : "_")} " +
@@ -130,6 +241,18 @@ namespace SharpTimer
 
                 ReplayPlayback(player, playerReplays[player.Slot].CurrentPlaybackFrame);
 
+                if (playerReplays.TryGetValue(player.Slot, out PlayerReplays? replayDataCheck) && replayDataCheck != null)
+                {
+                    int totalFramesInternal = replayDataCheck.replayFrames.Count;
+                    if (replayDataCheck.CurrentPlaybackFrame >= totalFramesInternal -1 )
+                    {
+                        if (player == replayBotController)
+                        {
+                            ClearReplayBotTrail();
+                            if (Utils != null) Utils.LogDebug($"End of replay for bot {player.PlayerName}. Trail cleared.");
+                        }
+                    }
+                }
                 playerReplays[player.Slot].CurrentPlaybackFrame++;
             }
             catch (Exception ex)
@@ -324,10 +447,24 @@ namespace SharpTimer
 
         private async Task SpawnReplayBot()
         {
-            if (!await CheckSRReplay())
+            ClearReplayBotTrail(); // Clear at the very beginning
+
+            if (!await CheckSRReplay()) //This check might be redundant if CheckSRReplay is called before SR time fetching.
             {
-                Utils.LogError("Replay check failed, not spawning bot.");
+                Utils.LogError("Replay check failed (2nd check), not spawning bot.");
                 return;
+            }
+
+            var (srSteamID, srPlayerName, srTime) = await GetMapRecordSteamIDFromDatabase();
+            if (srTime != "null" && srTime != null && Utils != null)
+            {
+                currentMapSRTicksForTrail = Utils.ParseFormattedTimeToTicks(srTime);
+                Utils.LogDebug($"SR time for trail: {srTime} ({currentMapSRTicksForTrail} ticks).");
+            }
+            else
+            {
+                currentMapSRTicksForTrail = 0;
+                if (Utils != null) Utils.LogDebug($"No SR time for trail (srTime: {srTime}).");
             }
 
             Server.NextFrame(() =>
@@ -357,6 +494,7 @@ namespace SharpTimer
                             if (bot != null)
                             {
                                 replayBotController = bot;
+                                if (Utils != null) Utils.LogDebug($"Replay bot trail ready for {bot.PlayerName}. SR Ticks: {currentMapSRTicksForTrail}");
                                 Utils.LogDebug($"Found replay bot: {bot.PlayerName}");
 
                                 var botPlayerPawn = bot.PlayerPawn();
@@ -372,6 +510,12 @@ namespace SharpTimer
                                 OnPlayerConnect(bot, true);
                                 ChangePlayerName(bot, replayBotName);
                                 playerTimers[bot.Slot].IsTimerBlocked = true;
+
+                                // Initialize/clear trail variables
+                                replayBotBeamSegments.Clear();
+                                replayBotPreviousPosition = null;
+                                Utils.LogDebug($"Replay bot trail variables cleared and initialized for {bot.PlayerName}.");
+
                                 _ = Task.Run(async () => await ReplayHandler(bot, bot.Slot));
                                 Utils.LogDebug($"Starting replay for {bot.PlayerName}");
                             }
@@ -447,6 +591,22 @@ namespace SharpTimer
                 Console.WriteLine($"Error during deserialization: {ex.Message}");
                 return false;
             }
+        }
+    }
+
+    public class BeamSegment
+    {
+        public CBeam BeamEntity { get; set; }
+        public int CreationTick { get; set; }
+        public Vector_t StartPos { get; set; }
+        public Vector_t EndPos { get; set; }
+
+        public BeamSegment(CBeam beamEntity, int creationTick, Vector_t startPos, Vector_t endPos)
+        {
+            BeamEntity = beamEntity;
+            CreationTick = creationTick;
+            StartPos = startPos;
+            EndPos = endPos;
         }
     }
 }

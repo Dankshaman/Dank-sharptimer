@@ -29,6 +29,12 @@ namespace SharpTimer;
 
 public partial class SharpTimer : BasePlugin
 {
+    public static float ReplayBeamWidth = 2.0f; // Default value, will be updated by ConVar
+    public List<BeamSegment> replayBotBeamSegments = new List<BeamSegment>();
+    public Vector_t? replayBotPreviousPosition = null;
+    public int currentMapSRTicksForTrail = 0;
+    public const int ReplayBeamSegmentLifetimeTicks = 64; // 1 second at 64 tick
+
     public override void Load(bool hotReload)
     {
         Instance = this;
@@ -94,6 +100,7 @@ public partial class SharpTimer : BasePlugin
 
     public override void Unload(bool hotReload)
     {
+        if (Utils != null) { Utils.LogDebug("Plugin Unload: Clearing replay bot trail if active."); ClearReplayBotTrail(); }
         if (isLinux) RunCommand?.Unhook(OnRunCommand, HookMode.Pre);
         StateTransition.Unhook(Hook_StateTransition, HookMode.Post);
         RemoveDamage?.Unhook();
@@ -398,6 +405,13 @@ public partial class SharpTimer : BasePlugin
             return HookResult.Continue;
 
         OnPlayerDisconnect(player);
+
+        if (player != null && player.IsValid && player == replayBotController)
+        {
+            if (Utils != null) Utils.LogDebug($"Replay bot {player.PlayerName} disconnected. Clearing trail.");
+            ClearReplayBotTrail();
+            replayBotController = null;
+        }
 
         return HookResult.Continue;
     }

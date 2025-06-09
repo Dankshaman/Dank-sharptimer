@@ -588,6 +588,25 @@ namespace SharpTimer
             enableSRreplayBot = bool.TryParse(args, out bool enableSRreplayBotValue) ? enableSRreplayBotValue : args != "0" && enableSRreplayBot;
         }
 
+        public static float replayBeamWidthDefault = 2.0f;
+
+        [ConsoleCommand("sharptimer_replay_beam_width", "Sets the width of the server replay bot's beam trail.")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerReplayBeamWidthConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            string args = command.ArgString.Trim();
+            if (float.TryParse(args, NumberStyles.Any, CultureInfo.InvariantCulture, out float width) && width > 0)
+            {
+                ReplayBeamWidth = width;
+                Utils.LogDebug($"SharpTimer replay beam width set to {width}.");
+            }
+            else
+            {
+                ReplayBeamWidth = replayBeamWidthDefault; // Fallback to default if parsing fails or value is invalid
+                Utils.LogError($"Invalid replay beam width value. Using default: {ReplayBeamWidth}. Please provide a positive float.");
+            }
+        }
+
         [ConsoleCommand("sharptimer_replay_bot_name", "What the name of the Replay Record bot should be. Default value: SERVER RECORD REPLAY")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void SharpTimerReplayBotNameConvar(CCSPlayerController? player, CommandInfo command)
