@@ -88,7 +88,7 @@ namespace SharpTimer
 
                 if (playerTimers.TryGetValue(player.Slot, out PlayerTimerInfo? value))
                 {
-                    
+
                     // var replayFrame = playerReplays[player.Slot].replayFrames[plackbackTick]; // Original line before replayInfo check - THIS IS THE LINE TO REMOVE
 
                     // Check for replayInfo first
@@ -148,35 +148,46 @@ namespace SharpTimer
                             string beamColorHex;
                             System.Drawing.Color finalBeamColor;
 
-                            if (Utils == null) { // Changed _utils to Utils
+                            if (Utils == null)
+                            { // Changed _utils to Utils
                                 finalBeamColor = System.Drawing.Color.LimeGreen;
-                            } else {
+                            }
+                            else
+                            {
                                 int[] velThresholds = SharpTimer.VelocityThresholds;
                                 string[] hexColors = SharpTimer.HudHexColors;
 
                                 // Default to the first color
-                                if (!Utils.TryParseHexColor(hexColors[0], out finalBeamColor)) {
+                                if (!Utils.TryParseHexColor(hexColors[0], out finalBeamColor))
+                                {
                                     finalBeamColor = System.Drawing.Color.LimeGreen;
                                 }
 
-                                if (speedMagnitude < velThresholds[0]) {
+                                if (speedMagnitude < velThresholds[0])
+                                {
                                     // Already handled by default assignment to hexColors[0]
                                     // If TryParseHexColor failed for hexColors[0], finalBeamColor is LimeGreen.
                                     // If it succeeded, finalBeamColor is hexColors[0]. This is fine.
-                                } else if (speedMagnitude >= velThresholds[velThresholds.Length - 1]) { // Speed is >= last threshold
+                                }
+                                else if (speedMagnitude >= velThresholds[velThresholds.Length - 1])
+                                { // Speed is >= last threshold
                                     // Use the last color in hexColors (index velThresholds.Length, which is hexColors.Length - 1)
                                     if (!Utils.TryParseHexColor(hexColors[velThresholds.Length], out finalBeamColor))
                                         finalBeamColor = System.Drawing.Color.Red; // Fallback
-                                } else {
-                                    for (int i = 0; i < velThresholds.Length - 1; i++) {
-                                        if (speedMagnitude >= velThresholds[i] && speedMagnitude < velThresholds[i+1]) {
+                                }
+                                else
+                                {
+                                    for (int i = 0; i < velThresholds.Length - 1; i++)
+                                    {
+                                        if (speedMagnitude >= velThresholds[i] && speedMagnitude < velThresholds[i + 1])
+                                        {
                                             System.Drawing.Color color1, color2;
                                             if (!Utils.TryParseHexColor(hexColors[i], out color1)) // Color for current threshold
                                                 color1 = finalBeamColor; // Use current finalBeamColor as fallback if parsing fails
-                                            if (!Utils.TryParseHexColor(hexColors[i+1], out color2)) // Color for next threshold
+                                            if (!Utils.TryParseHexColor(hexColors[i + 1], out color2)) // Color for next threshold
                                                 color2 = color1; // Fallback to color1 if parsing fails
 
-                                            float factor = (speedMagnitude - velThresholds[i]) / (float)(velThresholds[i+1] - velThresholds[i]);
+                                            float factor = (speedMagnitude - velThresholds[i]) / (float)(velThresholds[i + 1] - velThresholds[i]);
                                             finalBeamColor = Utils.InterpolateColor(color1, color2, factor);
                                             break;
                                         }
@@ -194,12 +205,13 @@ namespace SharpTimer
                             if (distanceToPrevious <= MAX_BEAM_DISTANCE)
                             {
                                 CBeam beam = Utilities.CreateEntityByName<CBeam>("beam");
-                                if (beam != null) {
+                                if (beam != null)
+                                {
                                     try { beam.Render = System.Drawing.ColorTranslator.FromHtml(beamColorHex); }
                                     catch { beam.Render = System.Drawing.Color.LimeGreen; } // Fallback color
                                     beam.Width = SharpTimer.ReplayBeamWidth;
 
-                                    beam.Teleport(prevPosCssVec, new CounterStrikeSharp.API.Modules.Utils.QAngle(0,0,0), new CounterStrikeSharp.API.Modules.Utils.Vector(0,0,0));
+                                    beam.Teleport(prevPosCssVec, new CounterStrikeSharp.API.Modules.Utils.QAngle(0, 0, 0), new CounterStrikeSharp.API.Modules.Utils.Vector(0, 0, 0));
                                     beam.EndPos.X = currentBotOriginCssVec.X; // Use CssVec for EndPos components
                                     beam.EndPos.Y = currentBotOriginCssVec.Y;
                                     beam.EndPos.Z = currentBotOriginCssVec.Z;
@@ -275,6 +287,12 @@ namespace SharpTimer
                     playerReplays[player.Slot].CurrentPlaybackFrame = 0;
                     Action<CCSPlayerController?, float, bool> adjustVelocity = use2DSpeed ? AdjustPlayerVelocity2D : AdjustPlayerVelocity;
                     adjustVelocity(player, 0, false);
+                    // --- Add weapon removal logic here ---
+                    if (player.IsBot && player.IsValid && player.PlayerPawn.IsValid && player.PlayerPawn.Value.IsValid) // Ensure player and pawn are valid
+                    {
+                        player.RemoveWeapons();
+                    }
+                    // --- End of weapon removal logic ---
                 }
 
                 ReplayPlayback(player, playerReplays[player.Slot].CurrentPlaybackFrame);
@@ -282,7 +300,7 @@ namespace SharpTimer
                 if (playerReplays.TryGetValue(player.Slot, out PlayerReplays? replayDataCheck) && replayDataCheck != null)
                 {
                     int totalFramesInternal = replayDataCheck.replayFrames.Count;
-                    if (replayDataCheck.CurrentPlaybackFrame >= totalFramesInternal -1 )
+                    if (replayDataCheck.CurrentPlaybackFrame >= totalFramesInternal - 1)
                     {
                         // Removed ClearReplayBotTrail() call here
                     }
@@ -528,6 +546,11 @@ namespace SharpTimer
                             if (bot != null)
                             {
                                 replayBotController = bot;
+                                if (bot.PlayerPawn.Value != null)
+                                {
+                                    bot.PlayerPawn.Value.SetModel("weapons/models/taser/weapon_pist_taser_mag.vmdl");
+                                    Utils.LogDebug($"Set replay bot model to weapons/models/taser/weapon_pist_taser_mag.vmdl");
+                                }
                                 if (Utils != null) Utils.LogDebug($"Replay bot trail ready for {bot.PlayerName}. SR Ticks: {currentMapSRTicksForTrail}");
                                 Utils.LogDebug($"Found replay bot: {bot.PlayerName}");
 
@@ -535,7 +558,6 @@ namespace SharpTimer
                                 if (botPlayerPawn == null) return;
 
                                 // bot settings
-                                bot.RemoveWeapons();
                                 botPlayerPawn.Bot!.IsStopping = true;
                                 botPlayerPawn.Bot.IsSleeping = true;
                                 botPlayerPawn.Bot.AllowActive = true;
@@ -544,6 +566,7 @@ namespace SharpTimer
                                 OnPlayerConnect(bot, true);
                                 ChangePlayerName(bot, replayBotName);
                                 playerTimers[bot.Slot].IsTimerBlocked = true;
+                                bot.RemoveWeapons();
 
                                 // Initialize/clear trail variables
                                 replayBotBeamSegments.Clear();
